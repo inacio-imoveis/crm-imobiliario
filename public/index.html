@@ -12,14 +12,14 @@ body{background:#f4f6f8;color:#1a1a1a}
 .login-box{background:#fff;border-radius:12px;padding:32px;width:100%;max-width:360px}
 .login-box h1{font-size:20px;font-weight:600;margin-bottom:4px;color:#0F6E56}
 .login-box p{font-size:13px;color:#666;margin-bottom:24px}
-.form-group{margin-bottom:16px}
-.form-group label{font-size:12px;color:#666;display:block;margin-bottom:6px}
-.form-group input{width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px}
+.frow{margin-bottom:14px}
+.frow label{font-size:12px;color:#666;display:block;margin-bottom:5px}
+.frow input,.frow select,.frow textarea{width:100%;padding:9px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px}
+.frow textarea{height:70px;resize:vertical}
 .btn-primary{width:100%;padding:11px;background:#0F6E56;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer}
-.btn-primary:hover{background:#085041}
 nav{background:#0F6E56;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
 .nav-logo{color:#fff;font-weight:600;font-size:15px}
-.nav-tabs{display:flex;gap:4px}
+.nav-tabs{display:flex;gap:4px;flex-wrap:wrap}
 .nav-tab{padding:7px 14px;border:none;background:transparent;color:rgba(255,255,255,0.7);border-radius:6px;cursor:pointer;font-size:13px}
 .nav-tab.active,.nav-tab:hover{background:rgba(255,255,255,0.15);color:#fff}
 .nav-user{color:rgba(255,255,255,0.8);font-size:13px;cursor:pointer}
@@ -31,7 +31,6 @@ main{padding:20px;max-width:1100px;margin:0 auto}
 .toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px}
 .toolbar h2{font-size:16px;font-weight:600}
 .btn-green{padding:8px 16px;background:#0F6E56;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:500;cursor:pointer}
-.btn-green:hover{background:#085041}
 .lead-card{background:#fff;border-radius:10px;padding:14px 16px;margin-bottom:10px;border:1px solid #e8e8e8;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .avatar{width:38px;height:38px;border-radius:50%;background:#E1F5EE;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:#0F6E56;flex-shrink:0}
 .lead-info{flex:1;min-width:120px}
@@ -41,4 +40,234 @@ main{padding:20px;max-width:1100px;margin:0 auto}
 .badge-novo{background:#E1F5EE;color:#0F6E56}
 .badge-contato{background:#dbeafe;color:#1d4ed8}
 .badge-visita{background:#fef3c7;color:#92400e}
-.badg
+.badge-proposta{background:#fce7f3;color:#9d174d}
+.badge-fechado{background:#d1fae5;color:#065f46}
+.lead-btns{display:flex;gap:6px;margin-left:auto}
+.btn-sm{padding:5px 10px;font-size:12px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;color:#555}
+.btn-danger{border-color:#fca5a5;color:#dc2626}
+.kanban{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.kcol{background:#f4f6f8;border-radius:10px;padding:10px;border:1px solid #e8e8e8}
+.kcol-title{font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.kcount{background:#e0e0e0;color:#555;font-size:10px;padding:1px 6px;border-radius:8px}
+.kcard{background:#fff;border-radius:8px;padding:10px;margin-bottom:8px;border:1px solid #e8e8e8}
+.kcard-name{font-size:13px;font-weight:500}
+.kcard-sub{font-size:11px;color:#888;margin-top:2px}
+.imovel-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
+.icard{background:#fff;border-radius:10px;border:1px solid #e8e8e8;overflow:hidden}
+.icard-img{height:90px;background:#E1F5EE;display:flex;align-items:center;justify-content:center;font-size:36px}
+.icard-body{padding:12px}
+.icard-name{font-size:13px;font-weight:500;margin-bottom:4px}
+.icard-price{font-size:15px;font-weight:600;color:#0F6E56;margin-bottom:4px}
+.icard-detail{font-size:12px;color:#888}
+.hist-item{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid #f0f0f0}
+.hist-dot{width:8px;height:8px;border-radius:50%;background:#0F6E56;margin-top:5px;flex-shrink:0}
+.hist-text{font-size:13px;color:#333}
+.hist-time{font-size:11px;color:#aaa;margin-top:2px}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:flex-start;justify-content:center;padding:60px 16px;z-index:100;overflow-y:auto}
+.modal{background:#fff;border-radius:12px;padding:24px;width:100%;max-width:420px}
+.modal h3{font-size:16px;font-weight:600;margin-bottom:20px}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+.btn-cancel{padding:8px 16px;font-size:13px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;color:#555}
+.error{color:#dc2626;font-size:13px;margin-top:8px}
+.empty{text-align:center;padding:40px;color:#aaa;font-size:14px}
+</style>
+</head>
+<body>
+<div id="login-page">
+  <div class="login-box">
+    <h1>Ricardo Inácio Imóveis</h1>
+    <p>CRM — Acesso restrito</p>
+    <div class="frow"><label>Email</label><input type="email" id="l-email" value="ricardo@inacio.com"></div>
+    <div class="frow"><label>Senha</label><input type="password" id="l-senha" value="ricardo2026"></div>
+    <div id="l-erro" class="error hidden"></div>
+    <br>
+    <button class="btn-primary" onclick="login()">Entrar</button>
+  </div>
+</div>
+<div id="app-page" class="hidden">
+  <nav>
+    <span class="nav-logo">Ricardo Inácio Imóveis</span>
+    <div class="nav-tabs">
+      <button class="nav-tab active" onclick="showTab('leads',this)">Leads</button>
+      <button class="nav-tab" onclick="showTab('funil',this)">Funil</button>
+      <button class="nav-tab" onclick="showTab('imoveis',this)">Imóveis</button>
+      <button class="nav-tab" onclick="showTab('historico',this)">Histórico</button>
+    </div>
+    <span class="nav-user" onclick="logout()" id="nav-nome">Sair</span>
+  </nav>
+  <main>
+    <div id="tab-leads">
+      <div class="metrics">
+        <div class="metric"><div class="metric-label">Total leads</div><div class="metric-value" id="m-total">0</div></div>
+        <div class="metric"><div class="metric-label">Novos</div><div class="metric-value" id="m-novos">0</div></div>
+        <div class="metric"><div class="metric-label">Em negociação</div><div class="metric-value" id="m-neg">0</div></div>
+        <div class="metric"><div class="metric-label">Fechados</div><div class="metric-value" id="m-fechados">0</div></div>
+      </div>
+      <div class="toolbar"><h2>Clientes e leads</h2><button class="btn-green" onclick="openModal()">+ Novo lead</button></div>
+      <div id="leads-list"></div>
+    </div>
+    <div id="tab-funil" class="hidden">
+      <div class="toolbar"><h2>Funil de vendas</h2></div>
+      <div class="kanban" id="kanban"></div>
+    </div>
+    <div id="tab-imoveis" class="hidden">
+      <div class="toolbar"><h2>Catálogo de imóveis</h2></div>
+      <div class="imovel-grid" id="imoveis-grid"></div>
+    </div>
+    <div id="tab-historico" class="hidden">
+      <div class="toolbar"><h2>Histórico de atividades</h2></div>
+      <div id="hist-list"></div>
+    </div>
+  </main>
+</div>
+<div id="modal" class="modal-overlay hidden">
+  <div class="modal">
+    <h3 id="modal-title">Novo lead</h3>
+    <input type="hidden" id="f-id">
+    <div class="frow"><label>Nome *</label><input type="text" id="f-nome" placeholder="Ex: João Silva"></div>
+    <div class="frow"><label>WhatsApp</label><input type="text" id="f-fone" placeholder="62 9xxxx-xxxx"></div>
+    <div class="frow"><label>Imóvel</label>
+      <select id="f-imovel">
+        <option value="">Selecione</option>
+        <option>Monte Pascoal — Casa 01</option>
+        <option>Monte Pascoal — Casa 02</option>
+        <option>Monte Pascoal — Casa 03</option>
+        <option>Della Penna — Casa 01</option>
+        <option>Della Penna — Casa 02</option>
+        <option>Della Penna — Casa 03</option>
+      </select>
+    </div>
+    <div class="frow"><label>Etapa</label>
+      <select id="f-etapa">
+        <option value="novo">Novo</option>
+        <option value="contato">Contato feito</option>
+        <option value="visita">Visita agendada</option>
+        <option value="proposta">Proposta enviada</option>
+        <option value="fechado">Fechado</option>
+      </select>
+    </div>
+    <div class="frow"><label>Observações</label><textarea id="f-obs" placeholder="Anotações..."></textarea></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="btn-green" onclick="saveLead()">Salvar</button>
+    </div>
+  </div>
+</div>
+<script>
+const API="";
+let token=localStorage.getItem("crm_token")||"";
+let nomeUsuario=localStorage.getItem("crm_nome")||"";
+const ETAPAS=["novo","contato","visita","proposta","fechado"];
+const ELABEL={novo:"Novo",contato:"Contato",visita:"Visita",proposta:"Proposta",fechado:"Fechado"};
+const EBADGE={novo:"badge-novo",contato:"badge-contato",visita:"badge-visita",proposta:"badge-proposta",fechado:"badge-fechado"};
+const IMOVEIS=[
+  {nome:"Monte Pascoal — Casa 01",quartos:2,area:46,valor:149000,entrada:7450},
+  {nome:"Monte Pascoal — Casa 02",quartos:2,area:46,valor:149000,entrada:7450},
+  {nome:"Monte Pascoal — Casa 03",quartos:2,area:46,valor:149000,entrada:7450},
+  {nome:"Della Penna — Casa 01",quartos:3,area:80,valor:241000,entrada:12050},
+  {nome:"Della Penna — Casa 02",quartos:3,area:80,valor:251000,entrada:12550},
+  {nome:"Della Penna — Casa 03",quartos:3,area:80,valor:261000,entrada:13050},
+];
+let leads=[];
+if(token){document.getElementById("login-page").classList.add("hidden");document.getElementById("app-page").classList.remove("hidden");document.getElementById("nav-nome").textContent=nomeUsuario+" — Sair";loadLeads();}
+async function login(){
+  const email=document.getElementById("l-email").value;
+  const senha=document.getElementById("l-senha").value;
+  try{
+    const r=await fetch("/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,senha})});
+    const d=await r.json();
+    if(!r.ok){document.getElementById("l-erro").textContent=d.erro;document.getElementById("l-erro").classList.remove("hidden");return;}
+    token=d.token;nomeUsuario=d.nome;
+    localStorage.setItem("crm_token",token);localStorage.setItem("crm_nome",nomeUsuario);
+    document.getElementById("login-page").classList.add("hidden");
+    document.getElementById("app-page").classList.remove("hidden");
+    document.getElementById("nav-nome").textContent=nomeUsuario+" — Sair";
+    loadLeads();
+  }catch(e){document.getElementById("l-erro").textContent="Erro de conexão";document.getElementById("l-erro").classList.remove("hidden");}
+}
+function logout(){localStorage.removeItem("crm_token");localStorage.removeItem("crm_nome");location.reload();}
+function h(){return{"Content-Type":"application/json","Authorization":"Bearer "+token};}
+function ini(n){return n.split(" ").slice(0,2).map(x=>x[0]).join("").toUpperCase();}
+async function loadLeads(){
+  const r=await fetch("/api/leads",{headers:h()});
+  leads=await r.json();
+  renderLeads();renderMetrics();
+}
+function renderMetrics(){
+  document.getElementById("m-total").textContent=leads.length;
+  document.getElementById("m-novos").textContent=leads.filter(l=>l.etapa==="novo").length;
+  document.getElementById("m-neg").textContent=leads.filter(l=>["contato","visita","proposta"].includes(l.etapa)).length;
+  document.getElementById("m-fechados").textContent=leads.filter(l=>l.etapa==="fechado").length;
+}
+function renderLeads(){
+  const el=document.getElementById("leads-list");
+  if(!leads.length){el.innerHTML='<div class="empty">Nenhum lead ainda. Clique em "+ Novo lead".</div>';return;}
+  el.innerHTML=leads.map(l=>`<div class="lead-card">
+    <div class="avatar">${ini(l.nome)}</div>
+    <div class="lead-info"><div class="lead-name">${l.nome}</div><div class="lead-sub">${l.fone||"—"} · ${l.imovel||"Sem imóvel"}</div></div>
+    <span class="badge ${EBADGE[l.etapa]}">${ELABEL[l.etapa]}</span>
+    <div class="lead-btns">
+      <button class="btn-sm" onclick="editLead(${l.id})">Editar</button>
+      <button class="btn-sm" onclick="avancar(${l.id})">→</button>
+      <button class="btn-sm btn-danger" onclick="deleteLead(${l.id})">✕</button>
+    </div></div>`).join("");
+}
+function renderKanban(){
+  document.getElementById("kanban").innerHTML=ETAPAS.map(e=>{
+    const col=leads.filter(l=>l.etapa===e);
+    return`<div class="kcol"><div class="kcol-title">${ELABEL[e]}<span class="kcount">${col.length}</span></div>${col.map(l=>`<div class="kcard"><div class="kcard-name">${l.nome}</div><div class="kcard-sub">${(l.imovel||"").split("—")[0]}</div></div>`).join("")||'<div style="font-size:12px;color:#ccc;text-align:center;padding:8px">vazio</div>'}</div>`;
+  }).join("");
+}
+function renderImoveis(){
+  document.getElementById("imoveis-grid").innerHTML=IMOVEIS.map(i=>`<div class="icard"><div class="icard-img">🏠</div><div class="icard-body"><div class="icard-name">${i.nome}</div><div class="icard-price">R$ ${i.valor.toLocaleString("pt-BR")}</div><div class="icard-detail">${i.quartos} quartos · ${i.area}m²</div><div class="icard-detail">Entrada: R$ ${i.entrada.toLocaleString("pt-BR")}</div></div></div>`).join("");
+}
+async function renderHistorico(){
+  const r=await fetch("/api/historico",{headers:h()});
+  const hist=await r.json();
+  const el=document.getElementById("hist-list");
+  if(!hist.length){el.innerHTML='<div class="empty">Nenhuma atividade ainda.</div>';return;}
+  el.innerHTML=hist.map(h=>`<div class="hist-item"><div class="hist-dot"></div><div><div class="hist-text">${h.texto} <span style="color:#aaa">· ${h.lead_nome||""}</span></div><div class="hist-time">${new Date(h.criado_em).toLocaleString("pt-BR")}</div></div></div>`).join("");
+}
+function showTab(tab,btn){
+  ["leads","funil","imoveis","historico"].forEach(t=>document.getElementById("tab-"+t).classList.add("hidden"));
+  document.querySelectorAll(".nav-tab").forEach(b=>b.classList.remove("active"));
+  document.getElementById("tab-"+tab).classList.remove("hidden");
+  btn.classList.add("active");
+  if(tab==="funil")renderKanban();
+  if(tab==="imoveis")renderImoveis();
+  if(tab==="historico")renderHistorico();
+}
+function openModal(l=null){
+  document.getElementById("modal-title").textContent=l?"Editar lead":"Novo lead";
+  document.getElementById("f-id").value=l?l.id:"";
+  document.getElementById("f-nome").value=l?l.nome:"";
+  document.getElementById("f-fone").value=l?l.fone:"";
+  document.getElementById("f-imovel").value=l?l.imovel:"";
+  document.getElementById("f-etapa").value=l?l.etapa:"novo";
+  document.getElementById("f-obs").value=l?l.observacoes||"":"";
+  document.getElementById("modal").classList.remove("hidden");
+}
+function closeModal(){document.getElementById("modal").classList.add("hidden");}
+function editLead(id){openModal(leads.find(l=>l.id===id));}
+async function saveLead(){
+  const id=document.getElementById("f-id").value;
+  const body={nome:document.getElementById("f-nome").value.trim(),fone:document.getElementById("f-fone").value.trim(),imovel:document.getElementById("f-imovel").value,etapa:document.getElementById("f-etapa").value,observacoes:document.getElementById("f-obs").value.trim()};
+  if(!body.nome){alert("Preencha o nome");return;}
+  const url=id?"/api/leads/"+id:"/api/leads";
+  const method=id?"PUT":"POST";
+  await fetch(url,{method,headers:h(),body:JSON.stringify(body)});
+  closeModal();loadLeads();
+}
+async function avancar(id){
+  const l=leads.find(x=>x.id===id);if(!l)return;
+  const idx=ETAPAS.indexOf(l.etapa);
+  if(idx<ETAPAS.length-1){l.etapa=ETAPAS[idx+1];await fetch("/api/leads/"+id,{method:"PUT",headers:h(),body:JSON.stringify(l)});loadLeads();}
+}
+async function deleteLead(id){
+  if(!confirm("Remover este lead?"))return;
+  await fetch("/api/leads/"+id,{method:"DELETE",headers:h()});
+  loadLeads();
+}
+</script>
+</body>
+</html>

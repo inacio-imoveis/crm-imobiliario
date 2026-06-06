@@ -23,7 +23,7 @@ nav{background:#0F6E56;padding:12px 20px;display:flex;align-items:center;justify
 .nav-tab{padding:7px 14px;border:none;background:transparent;color:rgba(255,255,255,0.7);border-radius:6px;cursor:pointer;font-size:13px}
 .nav-tab.active,.nav-tab:hover{background:rgba(255,255,255,0.15);color:#fff}
 .nav-user{color:rgba(255,255,255,0.8);font-size:13px;cursor:pointer}
-main{padding:20px;max-width:1100px;margin:0 auto}
+main{padding:20px;max-width:1200px;margin:0 auto}
 .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px}
 .metric{background:#fff;border-radius:10px;padding:16px;border:1px solid #e8e8e8}
 .metric-label{font-size:12px;color:#888;margin-bottom:4px}
@@ -45,13 +45,19 @@ main{padding:20px;max-width:1100px;margin:0 auto}
 .lead-btns{display:flex;gap:6px;margin-left:auto}
 .btn-sm{padding:5px 10px;font-size:12px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;color:#555}
 .btn-danger{border-color:#fca5a5;color:#dc2626}
-.kanban{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
-.kcol{background:#f4f6f8;border-radius:10px;padding:10px;border:1px solid #e8e8e8}
+.btn-wa{border-color:#25D366;color:#25D366}
+.kanban{display:flex;gap:10px;overflow-x:auto;padding-bottom:10px}
+.kcol{background:#f4f6f8;border-radius:10px;padding:10px;border:1px solid #e8e8e8;min-width:180px;flex:1}
+.kcol.drag-over{background:#E1F5EE;border-color:#0F6E56}
 .kcol-title{font-size:11px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
 .kcount{background:#e0e0e0;color:#555;font-size:10px;padding:1px 6px;border-radius:8px}
-.kcard{background:#fff;border-radius:8px;padding:10px;margin-bottom:8px;border:1px solid #e8e8e8}
+.kcard{background:#fff;border-radius:8px;padding:10px;margin-bottom:8px;border:1px solid #e8e8e8;cursor:grab;user-select:none;transition:opacity .2s}
+.kcard:active{cursor:grabbing}
+.kcard.dragging{opacity:0.4}
 .kcard-name{font-size:13px;font-weight:500}
 .kcard-sub{font-size:11px;color:#888;margin-top:2px}
+.kcard-fone{font-size:11px;color:#0F6E56;margin-top:4px}
+.drop-hint{text-align:center;padding:12px;font-size:12px;color:#bbb;border:2px dashed #ddd;border-radius:8px}
 .imovel-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}
 .icard{background:#fff;border-radius:10px;border:1px solid #e8e8e8;overflow:hidden}
 .icard-img{height:90px;background:#E1F5EE;display:flex;align-items:center;justify-content:center;font-size:36px}
@@ -70,6 +76,8 @@ main{padding:20px;max-width:1100px;margin:0 auto}
 .btn-cancel{padding:8px 16px;font-size:13px;border:1px solid #ddd;border-radius:8px;background:#fff;cursor:pointer;color:#555}
 .error{color:#dc2626;font-size:13px;margin-top:8px}
 .empty{text-align:center;padding:40px;color:#aaa;font-size:14px}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0F6E56;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;z-index:999;opacity:0;transition:opacity .3s}
+.toast.show{opacity:1}
 </style>
 </head>
 <body>
@@ -103,11 +111,17 @@ main{padding:20px;max-width:1100px;margin:0 auto}
         <div class="metric"><div class="metric-label">Em negociação</div><div class="metric-value" id="m-neg">0</div></div>
         <div class="metric"><div class="metric-label">Fechados</div><div class="metric-value" id="m-fechados">0</div></div>
       </div>
-      <div class="toolbar"><h2>Clientes e leads</h2><button class="btn-green" onclick="openModal()">+ Novo lead</button></div>
+      <div class="toolbar">
+        <h2>Clientes e leads</h2>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <input type="text" id="search" placeholder="Buscar..." oninput="renderLeads()" style="padding:7px 12px;border:1px solid #ddd;border-radius:8px;font-size:13px;width:180px">
+          <button class="btn-green" onclick="openModal()">+ Novo lead</button>
+        </div>
+      </div>
       <div id="leads-list"></div>
     </div>
     <div id="tab-funil" class="hidden">
-      <div class="toolbar"><h2>Funil de vendas</h2></div>
+      <div class="toolbar"><h2>Funil de vendas <span style="font-size:12px;color:#888;font-weight:400">— arraste os cards para mover</span></h2></div>
       <div class="kanban" id="kanban"></div>
     </div>
     <div id="tab-imoveis" class="hidden">
@@ -153,8 +167,8 @@ main{padding:20px;max-width:1100px;margin:0 auto}
     </div>
   </div>
 </div>
+<div id="toast" class="toast"></div>
 <script>
-const API="";
 let token=localStorage.getItem("crm_token")||"";
 let nomeUsuario=localStorage.getItem("crm_nome")||"";
 const ETAPAS=["novo","contato","visita","proposta","fechado"];
@@ -169,7 +183,12 @@ const IMOVEIS=[
   {nome:"Della Penna — Casa 03",quartos:3,area:80,valor:261000,entrada:13050},
 ];
 let leads=[];
+let dragId=null;
+
 if(token){document.getElementById("login-page").classList.add("hidden");document.getElementById("app-page").classList.remove("hidden");document.getElementById("nav-nome").textContent=nomeUsuario+" — Sair";loadLeads();}
+
+function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2500);}
+
 async function login(){
   const email=document.getElementById("l-email").value;
   const senha=document.getElementById("l-senha").value;
@@ -188,39 +207,78 @@ async function login(){
 function logout(){localStorage.removeItem("crm_token");localStorage.removeItem("crm_nome");location.reload();}
 function h(){return{"Content-Type":"application/json","Authorization":"Bearer "+token};}
 function ini(n){return n.split(" ").slice(0,2).map(x=>x[0]).join("").toUpperCase();}
+
 async function loadLeads(){
   const r=await fetch("/api/leads",{headers:h()});
   leads=await r.json();
   renderLeads();renderMetrics();
 }
+
 function renderMetrics(){
   document.getElementById("m-total").textContent=leads.length;
   document.getElementById("m-novos").textContent=leads.filter(l=>l.etapa==="novo").length;
   document.getElementById("m-neg").textContent=leads.filter(l=>["contato","visita","proposta"].includes(l.etapa)).length;
   document.getElementById("m-fechados").textContent=leads.filter(l=>l.etapa==="fechado").length;
 }
+
 function renderLeads(){
+  const q=(document.getElementById("search")||{value:""}).value.toLowerCase();
+  const filtered=leads.filter(l=>l.nome.toLowerCase().includes(q)||(l.fone||"").includes(q)||(l.imovel||"").toLowerCase().includes(q));
   const el=document.getElementById("leads-list");
-  if(!leads.length){el.innerHTML='<div class="empty">Nenhum lead ainda. Clique em "+ Novo lead".</div>';return;}
-  el.innerHTML=leads.map(l=>`<div class="lead-card">
+  if(!filtered.length){el.innerHTML='<div class="empty">Nenhum lead encontrado.</div>';return;}
+  el.innerHTML=filtered.map(l=>`<div class="lead-card">
     <div class="avatar">${ini(l.nome)}</div>
     <div class="lead-info"><div class="lead-name">${l.nome}</div><div class="lead-sub">${l.fone||"—"} · ${l.imovel||"Sem imóvel"}</div></div>
     <span class="badge ${EBADGE[l.etapa]}">${ELABEL[l.etapa]}</span>
     <div class="lead-btns">
+      ${l.fone?`<button class="btn-sm btn-wa" onclick="abrirWA('${l.fone}')" title="WhatsApp">WA</button>`:""}
       <button class="btn-sm" onclick="editLead(${l.id})">Editar</button>
       <button class="btn-sm" onclick="avancar(${l.id})">→</button>
       <button class="btn-sm btn-danger" onclick="deleteLead(${l.id})">✕</button>
     </div></div>`).join("");
 }
+
+function abrirWA(fone){
+  const n=fone.replace(/\D/g,"");
+  window.open("https://wa.me/55"+n,"_blank");
+}
+
 function renderKanban(){
-  document.getElementById("kanban").innerHTML=ETAPAS.map(e=>{
+  const board=document.getElementById("kanban");
+  board.innerHTML=ETAPAS.map(e=>{
     const col=leads.filter(l=>l.etapa===e);
-    return`<div class="kcol"><div class="kcol-title">${ELABEL[e]}<span class="kcount">${col.length}</span></div>${col.map(l=>`<div class="kcard"><div class="kcard-name">${l.nome}</div><div class="kcard-sub">${(l.imovel||"").split("—")[0]}</div></div>`).join("")||'<div style="font-size:12px;color:#ccc;text-align:center;padding:8px">vazio</div>'}</div>`;
+    return`<div class="kcol" id="col-${e}" ondragover="dragOver(event,'${e}')" ondragleave="dragLeave(event)" ondrop="drop(event,'${e}')">
+      <div class="kcol-title">${ELABEL[e]}<span class="kcount">${col.length}</span></div>
+      ${col.map(l=>`<div class="kcard" draggable="true" id="kcard-${l.id}" ondragstart="dragStart(event,${l.id})" ondragend="dragEnd(event)">
+        <div class="kcard-name">${l.nome}</div>
+        <div class="kcard-sub">${(l.imovel||"").split("—")[0]}</div>
+        ${l.fone?`<div class="kcard-fone">${l.fone}</div>`:""}
+      </div>`).join("")||`<div class="drop-hint">solte aqui</div>`}
+    </div>`;
   }).join("");
 }
+
+function dragStart(e,id){dragId=id;setTimeout(()=>document.getElementById("kcard-"+id).classList.add("dragging"),0);}
+function dragEnd(e){document.querySelectorAll(".kcard").forEach(c=>c.classList.remove("dragging"));document.querySelectorAll(".kcol").forEach(c=>c.classList.remove("drag-over"));}
+function dragOver(e,etapa){e.preventDefault();document.getElementById("col-"+etapa).classList.add("drag-over");}
+function dragLeave(e){e.currentTarget.classList.remove("drag-over");}
+async function drop(e,etapa){
+  e.preventDefault();
+  document.querySelectorAll(".kcol").forEach(c=>c.classList.remove("drag-over"));
+  if(!dragId)return;
+  const l=leads.find(x=>x.id===dragId);
+  if(!l||l.etapa===etapa)return;
+  l.etapa=etapa;
+  await fetch("/api/leads/"+dragId,{method:"PUT",headers:h(),body:JSON.stringify(l)});
+  toast("✅ "+l.nome+" → "+ELABEL[etapa]);
+  loadLeads();
+  renderKanban();
+}
+
 function renderImoveis(){
   document.getElementById("imoveis-grid").innerHTML=IMOVEIS.map(i=>`<div class="icard"><div class="icard-img">🏠</div><div class="icard-body"><div class="icard-name">${i.nome}</div><div class="icard-price">R$ ${i.valor.toLocaleString("pt-BR")}</div><div class="icard-detail">${i.quartos} quartos · ${i.area}m²</div><div class="icard-detail">Entrada: R$ ${i.entrada.toLocaleString("pt-BR")}</div></div></div>`).join("");
 }
+
 async function renderHistorico(){
   const r=await fetch("/api/historico",{headers:h()});
   const hist=await r.json();
@@ -228,6 +286,7 @@ async function renderHistorico(){
   if(!hist.length){el.innerHTML='<div class="empty">Nenhuma atividade ainda.</div>';return;}
   el.innerHTML=hist.map(h=>`<div class="hist-item"><div class="hist-dot"></div><div><div class="hist-text">${h.texto} <span style="color:#aaa">· ${h.lead_nome||""}</span></div><div class="hist-time">${new Date(h.criado_em).toLocaleString("pt-BR")}</div></div></div>`).join("");
 }
+
 function showTab(tab,btn){
   ["leads","funil","imoveis","historico"].forEach(t=>document.getElementById("tab-"+t).classList.add("hidden"));
   document.querySelectorAll(".nav-tab").forEach(b=>b.classList.remove("active"));
@@ -237,6 +296,7 @@ function showTab(tab,btn){
   if(tab==="imoveis")renderImoveis();
   if(tab==="historico")renderHistorico();
 }
+
 function openModal(l=null){
   document.getElementById("modal-title").textContent=l?"Editar lead":"Novo lead";
   document.getElementById("f-id").value=l?l.id:"";
@@ -249,6 +309,7 @@ function openModal(l=null){
 }
 function closeModal(){document.getElementById("modal").classList.add("hidden");}
 function editLead(id){openModal(leads.find(l=>l.id===id));}
+
 async function saveLead(){
   const id=document.getElementById("f-id").value;
   const body={nome:document.getElementById("f-nome").value.trim(),fone:document.getElementById("f-fone").value.trim(),imovel:document.getElementById("f-imovel").value,etapa:document.getElementById("f-etapa").value,observacoes:document.getElementById("f-obs").value.trim()};
@@ -257,16 +318,19 @@ async function saveLead(){
   const method=id?"PUT":"POST";
   await fetch(url,{method,headers:h(),body:JSON.stringify(body)});
   closeModal();loadLeads();
+  toast(id?"✅ Lead atualizado!":"✅ Lead cadastrado!");
 }
+
 async function avancar(id){
   const l=leads.find(x=>x.id===id);if(!l)return;
   const idx=ETAPAS.indexOf(l.etapa);
-  if(idx<ETAPAS.length-1){l.etapa=ETAPAS[idx+1];await fetch("/api/leads/"+id,{method:"PUT",headers:h(),body:JSON.stringify(l)});loadLeads();}
+  if(idx<ETAPAS.length-1){l.etapa=ETAPAS[idx+1];await fetch("/api/leads/"+id,{method:"PUT",headers:h(),body:JSON.stringify(l)});loadLeads();toast("→ "+ELABEL[l.etapa]);}
 }
+
 async function deleteLead(id){
   if(!confirm("Remover este lead?"))return;
   await fetch("/api/leads/"+id,{method:"DELETE",headers:h()});
-  loadLeads();
+  loadLeads();toast("Lead removido");
 }
 </script>
 </body>

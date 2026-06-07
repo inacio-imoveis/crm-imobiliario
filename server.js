@@ -10,7 +10,6 @@ app.use(express.json());
 app.use(express.static("public"));
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
-
 const JWT_SECRET = process.env.JWT_SECRET || "crm-ricardo-2026";
 
 async function initDB() {
@@ -43,7 +42,7 @@ async function initDB() {
     await pool.query("INSERT INTO usuarios (nome, email, senha) VALUES ($1,$2,$3)",
       ["Ricardo Inácio", "ricardo@inacio.com", senha]);
   }
-  console.log("Banco iniciado!");
+  console.log("Banco iniciado! Deploy: 2026-06-07");
 }
 
 function auth(req, res, next) {
@@ -55,7 +54,7 @@ function auth(req, res, next) {
   } catch { res.status(401).json({ erro: "Token inválido" }); }
 }
 
-// ─── LOGIN ────────────────────────────────────────────────────────────────────
+// LOGIN
 app.post("/api/login", async (req, res) => {
   const { email, senha } = req.body;
   const r = await pool.query("SELECT * FROM usuarios WHERE email=$1", [email]);
@@ -65,16 +64,13 @@ app.post("/api/login", async (req, res) => {
   res.json({ token, nome: r.rows[0].nome });
 });
 
-// ─── ROTA PÚBLICA — recebe leads do formulário do site (sem login) ─────────────
+// ROTA PÚBLICA — recebe leads do site sem autenticação
 app.post("/api/leads/publico", async (req, res) => {
   try {
     const { nome, fone, imovel, renda, observacoes } = req.body;
-
     if (!nome || !fone) {
       return res.status(400).json({ erro: "Nome e telefone são obrigatórios" });
     }
-
-    // Monta observação com renda se informada
     const obs = [
       renda ? `Renda familiar: ${renda}` : null,
       observacoes || null
@@ -84,12 +80,11 @@ app.post("/api/leads/publico", async (req, res) => {
       "INSERT INTO leads (nome,fone,imovel,etapa,observacoes) VALUES ($1,$2,$3,$4,$5) RETURNING *",
       [nome, fone, imovel || "Não informado", "novo", obs || null]
     );
-
     await pool.query(
       "INSERT INTO historico (lead_id,texto) VALUES ($1,$2)",
       [r.rows[0].id, `Lead recebido pelo site: ${nome} (${fone})`]
     );
-
+    console.log(`Novo lead pelo site: ${nome} - ${fone}`);
     res.json({ ok: true, id: r.rows[0].id });
   } catch (err) {
     console.error("Erro ao salvar lead público:", err);
@@ -97,7 +92,7 @@ app.post("/api/leads/publico", async (req, res) => {
   }
 });
 
-// ─── LEADS (autenticados) ─────────────────────────────────────────────────────
+// LEADS autenticados
 app.get("/api/leads", auth, async (req, res) => {
   const r = await pool.query("SELECT * FROM leads ORDER BY criado_em DESC");
   res.json(r.rows);
@@ -128,7 +123,7 @@ app.delete("/api/leads/:id", auth, async (req, res) => {
   res.json({ ok: true });
 });
 
-// ─── HISTÓRICO ────────────────────────────────────────────────────────────────
+// HISTÓRICO
 app.get("/api/historico", auth, async (req, res) => {
   const r = await pool.query(
     "SELECT h.*, l.nome as lead_nome FROM historico h JOIN leads l ON h.lead_id=l.id ORDER BY h.criado_em DESC LIMIT 50");

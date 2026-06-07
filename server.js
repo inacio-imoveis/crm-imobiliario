@@ -55,6 +55,7 @@ function auth(req, res, next) {
   } catch { res.status(401).json({ erro: "Token inválido" }); }
 }
 
+// ─── LOGIN ────────────────────────────────────────────────────────────────────
 app.post("/api/login", async (req, res) => {
   const { email, senha } = req.body;
   const r = await pool.query("SELECT * FROM usuarios WHERE email=$1", [email]);
@@ -64,6 +65,39 @@ app.post("/api/login", async (req, res) => {
   res.json({ token, nome: r.rows[0].nome });
 });
 
+// ─── ROTA PÚBLICA — recebe leads do formulário do site (sem login) ─────────────
+app.post("/api/leads/publico", async (req, res) => {
+  try {
+    const { nome, fone, imovel, renda, observacoes } = req.body;
+
+    if (!nome || !fone) {
+      return res.status(400).json({ erro: "Nome e telefone são obrigatórios" });
+    }
+
+    // Monta observação com renda se informada
+    const obs = [
+      renda ? `Renda familiar: ${renda}` : null,
+      observacoes || null
+    ].filter(Boolean).join(" | ");
+
+    const r = await pool.query(
+      "INSERT INTO leads (nome,fone,imovel,etapa,observacoes) VALUES ($1,$2,$3,$4,$5) RETURNING *",
+      [nome, fone, imovel || "Não informado", "novo", obs || null]
+    );
+
+    await pool.query(
+      "INSERT INTO historico (lead_id,texto) VALUES ($1,$2)",
+      [r.rows[0].id, `Lead recebido pelo site: ${nome} (${fone})`]
+    );
+
+    res.json({ ok: true, id: r.rows[0].id });
+  } catch (err) {
+    console.error("Erro ao salvar lead público:", err);
+    res.status(500).json({ erro: "Erro interno" });
+  }
+});
+
+// ─── LEADS (autenticados) ─────────────────────────────────────────────────────
 app.get("/api/leads", auth, async (req, res) => {
   const r = await pool.query("SELECT * FROM leads ORDER BY criado_em DESC");
   res.json(r.rows);
@@ -94,6 +128,7 @@ app.delete("/api/leads/:id", auth, async (req, res) => {
   res.json({ ok: true });
 });
 
+// ─── HISTÓRICO ────────────────────────────────────────────────────────────────
 app.get("/api/historico", auth, async (req, res) => {
   const r = await pool.query(
     "SELECT h.*, l.nome as lead_nome FROM historico h JOIN leads l ON h.lead_id=l.id ORDER BY h.criado_em DESC LIMIT 50");

@@ -65,6 +65,33 @@ app.post("/api/login", async (req, res) => {
 });
 
 // ROTA PÚBLICA — recebe leads do site sem autenticação
+// Conversions API Meta — dispara evento Lead
+async function dispararEventoMeta(nome, fone) {
+  try {
+    const PIXEL_ID = "1743544532467097";
+    const TOKEN = process.env.META_CAPI_TOKEN;
+    if (!TOKEN) return;
+    const foneHash = fone.replace(/\D/g, "");
+    const payload = {
+      data: [{
+        event_name: "Lead",
+        event_time: Math.floor(Date.now() / 1000),
+        action_source: "website",
+        event_source_url: "https://ricardoinacioimoveis.com.br",
+        user_data: { ph: [foneHash] }
+      }]
+    };
+    const resp = await fetch(
+      `https://graph.facebook.com/v18.0/${PIXEL_ID}/events?access_token=${TOKEN}`,
+      { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }
+    );
+    const data = await resp.json();
+    console.log("Meta CAPI:", JSON.stringify(data));
+  } catch (e) {
+    console.error("Erro Meta CAPI:", e.message);
+  }
+}
+
 app.post("/api/leads/publico", async (req, res) => {
   try {
     const { nome, fone, imovel, renda, observacoes } = req.body;
@@ -85,6 +112,7 @@ app.post("/api/leads/publico", async (req, res) => {
       [r.rows[0].id, `Lead recebido pelo site: ${nome} (${fone})`]
     );
     console.log(`Novo lead pelo site: ${nome} - ${fone}`);
+    dispararEventoMeta(nome, fone);
     res.json({ ok: true, id: r.rows[0].id });
   } catch (err) {
     console.error("Erro ao salvar lead público:", err);
@@ -134,3 +162,4 @@ initDB().then(() => {
   app.listen(process.env.PORT || 3000, () =>
     console.log("CRM rodando na porta", process.env.PORT || 3000));
 });
+

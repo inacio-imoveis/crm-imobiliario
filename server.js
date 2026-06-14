@@ -35,6 +35,55 @@ async function initDB() {
       texto TEXT NOT NULL,
       criado_em TIMESTAMP DEFAULT NOW()
     );
+    CREATE TABLE IF NOT EXISTS obras (
+      id SERIAL PRIMARY KEY,
+      nome TEXT NOT NULL,
+      endereco TEXT,
+      etapa TEXT DEFAULT 'fundacao',
+      data_inicio DATE,
+      previsao_fim DATE,
+      responsavel TEXT,
+      status TEXT DEFAULT 'em_andamento',
+      observacoes TEXT,
+      criado_em TIMESTAMP DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS obra_diario (
+      id SERIAL PRIMARY KEY,
+      obra_id INTEGER REFERENCES obras(id) ON DELETE CASCADE,
+      texto TEXT,
+      foto_url TEXT,
+      criado_em TIMESTAMP DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS obra_ocorrencias (
+      id SERIAL PRIMARY KEY,
+      obra_id INTEGER REFERENCES obras(id) ON DELETE CASCADE,
+      tipo TEXT NOT NULL,
+      etapa TEXT,
+      descricao TEXT NOT NULL,
+      causa TEXT,
+      acao_corretiva TEXT,
+      gravidade TEXT DEFAULT 'media',
+      foto_url TEXT,
+      responsavel TEXT,
+      status TEXT DEFAULT 'aberta',
+      criado_em TIMESTAMP DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS obra_checklist_itens (
+      id SERIAL PRIMARY KEY,
+      etapa TEXT NOT NULL,
+      descricao TEXT NOT NULL,
+      ordem INTEGER DEFAULT 0
+    );
+    CREATE TABLE IF NOT EXISTS obra_checklist_execucoes (
+      id SERIAL PRIMARY KEY,
+      obra_id INTEGER REFERENCES obras(id) ON DELETE CASCADE,
+      item_id INTEGER REFERENCES obra_checklist_itens(id) ON DELETE CASCADE,
+      ok BOOLEAN DEFAULT FALSE,
+      foto_url TEXT,
+      observacao TEXT,
+      executado_em TIMESTAMP,
+      executado_por TEXT
+    );
   `);
   const existe = await pool.query("SELECT id FROM usuarios LIMIT 1");
   if (existe.rows.length === 0) {
@@ -42,7 +91,25 @@ async function initDB() {
     await pool.query("INSERT INTO usuarios (nome, email, senha) VALUES ($1,$2,$3)",
       ["Ricardo Inácio", "ricardo@inacio.com", senha]);
   }
-  console.log("Banco iniciado! Deploy: 2026-06-07");
+
+  // Seed do checklist padrão de pré-concretagem de laje
+  const existeChecklist = await pool.query("SELECT id FROM obra_checklist_itens WHERE etapa='pre_laje' LIMIT 1");
+  if (existeChecklist.rows.length === 0) {
+    const itensPreLaje = [
+      "Escoramento espaçado conforme vão (máx. 1,0–1,20m entre pontaletes)",
+      "Tábuas/vigas de madeira sem nós, rachaduras ou apodrecimento — inspeção visual",
+      "Cunhas e contraventamento nas escoras (evitar tombamento)",
+      "Teste de carga visual: pisar/saltar sobre a forma antes de concretar",
+      "Foto do escoramento completo ANTES da concretagem (anexar ao diário)",
+      "Verificar nível e prumo das formas",
+      "Responsável técnico assina o checklist liberando a concretagem",
+    ];
+    for (let i = 0; i < itensPreLaje.length; i++) {
+      await pool.query("INSERT INTO obra_checklist_itens (etapa, descricao, ordem) VALUES ($1,$2,$3)",
+        ["pre_laje", itensPreLaje[i], i + 1]);
+    }
+  }
+  console.log("Banco iniciado! Deploy: 2026-06-13");
 }
 
 function auth(req, res, next) {
@@ -151,7 +218,161 @@ app.delete("/api/leads/:id", auth, async (req, res) => {
   res.json({ ok: true });
 });
 
-// HISTÓRICO
+// ============ OBRAS ============
+const ETAPAS_OBRA = ["fundacao","alvenaria","laje","cobertura","acabamento","entrega"];
+
+app.get("/api/obras", auth, async (req, res) => {
+  const r = await pool.query("SELECT * FROM obras ORDER BY criado_em DESC");
+  res.json(r.rows);
+});
+
+app.get("/api/obras/:id", auth, async (req, res) => {
+  const obra = await pool.query("SELECT * FROM obras WHERE id=$1", [req.params.id]);
+  if (!obra.rows[0]) return res.status(404).json({ erro: "Obra não encontrada" });
+  const diario = await pool.query("SELECT * FROM obra_diario WHERE obra_id=$1 ORDER BY criado_em DESC", [req.params.id]);
+  const ocorrencias = await pool.query("SELECT * FROM obra_ocorrencias WHERE obra_id=$1 ORDER BY criado_em DESC", [req.params.id]);
+  res.json({ ...obra.rows[0], diario: diario.rows, ocorrencias: ocorrencias.rows });
+});
+
+app.post("/api/obras", auth, async (req, res) => {
+  const { nome, endereco, etapa, data_inicio, previsao_fim, responsavel, observacoes } = req.body;
+  if (!nome) return res.status(400).json({ erro: "Nome é obrigatório" });
+  const r = await pool.query(
+    `INSERT INTO obras (nome,endereco,etapa,data_inicio,previsao_fim,responsavel,observacoes)
+     VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+    [nome, endereco || null, etapa || "fundacao", data_inicio || null, previsao_fim || null, responsavel || null, observacoes || null]);
+  res.json(r.rows[0]);
+});
+
+app.put("/api/obras/:id", auth, async (req, res) => {
+  const { nome, endereco, etapa, data_inicio, previsao_fim, responsavel, status, observacoes } = req.body;
+  const r = await pool.query(
+    `UPDATE obras SET nome=$1,endereco=$2,etapa=$3,data_inicio=$4,previsao_fim=$5,responsavel=$6,status=$7,observacoes=$8
+     WHERE id=$9 RETURNING *`,
+    [nome, endereco, etapa, data_inicio || null, previsao_fim || null, responsavel, status || "em_andamento", observacoes, req.params.id]);
+  if (!r.rows[0]) return res.status(404).json({ erro: "Obra não encontrada" });
+  res.json(r.rows[0]);
+});
+
+app.delete("/api/obras/:id", auth, async (req, res) => {
+  await pool.query("DELETE FROM obras WHERE id=$1", [req.params.id]);
+  res.json({ ok: true });
+});
+
+// ---- Diário de obra ----
+app.get("/api/obras/:id/diario", auth, async (req, res) => {
+  const r = await pool.query("SELECT * FROM obra_diario WHERE obra_id=$1 ORDER BY criado_em DESC", [req.params.id]);
+  res.json(r.rows);
+});
+
+app.post("/api/obras/:id/diario", auth, async (req, res) => {
+  const { texto, foto_url } = req.body;
+  const r = await pool.query(
+    "INSERT INTO obra_diario (obra_id,texto,foto_url) VALUES ($1,$2,$3) RETURNING *",
+    [req.params.id, texto || null, foto_url || null]);
+  res.json(r.rows[0]);
+});
+
+app.delete("/api/obras/diario/:id", auth, async (req, res) => {
+  await pool.query("DELETE FROM obra_diario WHERE id=$1", [req.params.id]);
+  res.json({ ok: true });
+});
+
+// ---- Ocorrências / patologias ----
+app.get("/api/obras/:id/ocorrencias", auth, async (req, res) => {
+  const r = await pool.query("SELECT * FROM obra_ocorrencias WHERE obra_id=$1 ORDER BY criado_em DESC", [req.params.id]);
+  res.json(r.rows);
+});
+
+app.get("/api/ocorrencias", auth, async (req, res) => {
+  const r = await pool.query(
+    `SELECT o.*, ob.nome as obra_nome FROM obra_ocorrencias o
+     JOIN obras ob ON o.obra_id=ob.id ORDER BY o.criado_em DESC`);
+  res.json(r.rows);
+});
+
+app.post("/api/obras/:id/ocorrencias", auth, async (req, res) => {
+  const { tipo, etapa, descricao, causa, acao_corretiva, gravidade, foto_url, responsavel } = req.body;
+  if (!descricao) return res.status(400).json({ erro: "Descrição é obrigatória" });
+  const r = await pool.query(
+    `INSERT INTO obra_ocorrencias (obra_id,tipo,etapa,descricao,causa,acao_corretiva,gravidade,foto_url,responsavel)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+    [req.params.id, tipo || "patologia", etapa || null, descricao, causa || null, acao_corretiva || null, gravidade || "media", foto_url || null, responsavel || null]);
+  res.json(r.rows[0]);
+});
+
+app.put("/api/obras/ocorrencias/:id", auth, async (req, res) => {
+  const { tipo, etapa, descricao, causa, acao_corretiva, gravidade, foto_url, responsavel, status } = req.body;
+  const r = await pool.query(
+    `UPDATE obra_ocorrencias SET tipo=$1,etapa=$2,descricao=$3,causa=$4,acao_corretiva=$5,gravidade=$6,foto_url=$7,responsavel=$8,status=$9
+     WHERE id=$10 RETURNING *`,
+    [tipo, etapa, descricao, causa, acao_corretiva, gravidade, foto_url, responsavel, status || "aberta", req.params.id]);
+  if (!r.rows[0]) return res.status(404).json({ erro: "Ocorrência não encontrada" });
+  res.json(r.rows[0]);
+});
+
+app.delete("/api/obras/ocorrencias/:id", auth, async (req, res) => {
+  await pool.query("DELETE FROM obra_ocorrencias WHERE id=$1", [req.params.id]);
+  res.json({ ok: true });
+});
+
+// ---- Checklists (modelos) ----
+app.get("/api/checklist-itens", auth, async (req, res) => {
+  const { etapa } = req.query;
+  const r = etapa
+    ? await pool.query("SELECT * FROM obra_checklist_itens WHERE etapa=$1 ORDER BY ordem", [etapa])
+    : await pool.query("SELECT * FROM obra_checklist_itens ORDER BY etapa, ordem");
+  res.json(r.rows);
+});
+
+app.post("/api/checklist-itens", auth, async (req, res) => {
+  const { etapa, descricao, ordem } = req.body;
+  if (!etapa || !descricao) return res.status(400).json({ erro: "Etapa e descrição são obrigatórios" });
+  const r = await pool.query(
+    "INSERT INTO obra_checklist_itens (etapa,descricao,ordem) VALUES ($1,$2,$3) RETURNING *",
+    [etapa, descricao, ordem || 0]);
+  res.json(r.rows[0]);
+});
+
+app.delete("/api/checklist-itens/:id", auth, async (req, res) => {
+  await pool.query("DELETE FROM obra_checklist_itens WHERE id=$1", [req.params.id]);
+  res.json({ ok: true });
+});
+
+// ---- Checklist execuções (por obra) ----
+app.get("/api/obras/:id/checklist/:etapa", auth, async (req, res) => {
+  const itens = await pool.query("SELECT * FROM obra_checklist_itens WHERE etapa=$1 ORDER BY ordem", [req.params.etapa]);
+  const exec = await pool.query("SELECT * FROM obra_checklist_execucoes WHERE obra_id=$1", [req.params.id]);
+  const execMap = {};
+  exec.rows.forEach(e => execMap[e.item_id] = e);
+  const resultado = itens.rows.map(item => ({
+    ...item,
+    execucao: execMap[item.id] || null
+  }));
+  res.json(resultado);
+});
+
+app.post("/api/obras/:id/checklist/:itemId", auth, async (req, res) => {
+  const { ok, foto_url, observacao, executado_por } = req.body;
+  const existente = await pool.query(
+    "SELECT * FROM obra_checklist_execucoes WHERE obra_id=$1 AND item_id=$2",
+    [req.params.id, req.params.itemId]);
+  let r;
+  if (existente.rows[0]) {
+    r = await pool.query(
+      `UPDATE obra_checklist_execucoes SET ok=$1,foto_url=$2,observacao=$3,executado_em=NOW(),executado_por=$4
+       WHERE obra_id=$5 AND item_id=$6 RETURNING *`,
+      [ok, foto_url || null, observacao || null, executado_por || null, req.params.id, req.params.itemId]);
+  } else {
+    r = await pool.query(
+      `INSERT INTO obra_checklist_execucoes (obra_id,item_id,ok,foto_url,observacao,executado_em,executado_por)
+       VALUES ($1,$2,$3,$4,$5,NOW(),$6) RETURNING *`,
+      [req.params.id, req.params.itemId, ok, foto_url || null, observacao || null, executado_por || null]);
+  }
+  res.json(r.rows[0]);
+});
+
+
 app.get("/api/historico", auth, async (req, res) => {
   const r = await pool.query(
     "SELECT h.*, l.nome as lead_nome FROM historico h JOIN leads l ON h.lead_id=l.id ORDER BY h.criado_em DESC LIMIT 50");

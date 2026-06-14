@@ -78,6 +78,38 @@ main{padding:20px;max-width:1200px;margin:0 auto}
 .empty{text-align:center;padding:40px;color:#aaa;font-size:14px}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0F6E56;color:#fff;padding:10px 20px;border-radius:8px;font-size:13px;z-index:999;opacity:0;transition:opacity .3s}
 .toast.show{opacity:1}
+.obra-card{background:#fff;border-radius:10px;padding:14px 16px;margin-bottom:10px;border:1px solid #e8e8e8;cursor:pointer}
+.obra-card:hover{border-color:#0F6E56}
+.obra-card-top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.obra-card-name{font-size:14px;font-weight:600}
+.obra-card-sub{font-size:12px;color:#888;margin-top:3px}
+.badge-etapa{font-size:11px;padding:3px 9px;border-radius:12px;font-weight:500;background:#E1F5EE;color:#0F6E56}
+.badge-status-pausada{background:#fef3c7;color:#92400e}
+.badge-status-concluida{background:#d1fae5;color:#065f46}
+.badge-status-em_andamento{background:#dbeafe;color:#1d4ed8}
+.back-link{font-size:13px;color:#0F6E56;cursor:pointer;margin-bottom:12px;display:inline-block}
+.section-title{font-size:14px;font-weight:600;margin:18px 0 8px}
+.diario-item,.ocorrencia-item{background:#fff;border-radius:10px;padding:12px 14px;margin-bottom:8px;border:1px solid #e8e8e8}
+.ocorrencia-item.grav-alta{border-left:4px solid #dc2626}
+.ocorrencia-item.grav-media{border-left:4px solid #f59e0b}
+.ocorrencia-item.grav-baixa{border-left:4px solid #10b981}
+.item-foto{max-width:100%;border-radius:8px;margin-top:8px;display:block}
+.item-meta{font-size:11px;color:#aaa;margin-top:4px}
+.item-time{font-size:11px;color:#aaa}
+.tag-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.tag{font-size:11px;padding:2px 8px;border-radius:10px;background:#f4f6f8;color:#666}
+.checklist-item{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid #f0f0f0}
+.checklist-item input[type=checkbox]{width:18px;height:18px;margin-top:2px;flex-shrink:0}
+.checklist-desc{font-size:13px}
+.checklist-done .checklist-desc{color:#888;text-decoration:line-through}
+.etapa-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.etapa-tab{padding:6px 12px;border:1px solid #ddd;border-radius:16px;background:#fff;font-size:12px;cursor:pointer;color:#555}
+.etapa-tab.active{background:#0F6E56;color:#fff;border-color:#0F6E56}
+.badge-grav-alta{background:#fee2e2;color:#dc2626}
+.badge-grav-media{background:#fef3c7;color:#92400e}
+.badge-grav-baixa{background:#d1fae5;color:#065f46}
+.file-input-label{display:inline-block;padding:8px 14px;border:1px dashed #ccc;border-radius:8px;font-size:12px;color:#888;cursor:pointer;text-align:center;width:100%}
+.preview-thumb{max-width:120px;border-radius:6px;margin-top:6px}
 </style>
 </head>
 <body>
@@ -99,6 +131,7 @@ main{padding:20px;max-width:1200px;margin:0 auto}
       <button class="nav-tab active" onclick="showTab('leads',this)">Leads</button>
       <button class="nav-tab" onclick="showTab('funil',this)">Funil</button>
       <button class="nav-tab" onclick="showTab('imoveis',this)">Imóveis</button>
+      <button class="nav-tab" onclick="showTab('obras',this)">Obras</button>
       <button class="nav-tab" onclick="showTab('historico',this)">Histórico</button>
     </div>
     <span class="nav-user" onclick="logout()" id="nav-nome">Sair</span>
@@ -128,7 +161,85 @@ main{padding:20px;max-width:1200px;margin:0 auto}
       <div class="toolbar"><h2>Catálogo de imóveis</h2></div>
       <div class="imovel-grid" id="imoveis-grid"></div>
     </div>
-    <div id="tab-historico" class="hidden">
+    <div id="tab-obras" class="hidden">
+      <div id="obras-list-view">
+        <div class="toolbar">
+          <h2>Obras em andamento</h2>
+          <button class="btn-green" onclick="openObraModal()">+ Nova obra</button>
+        </div>
+        <div id="obras-list"></div>
+      </div>
+      <div id="obra-detail-view" class="hidden">
+        <span class="back-link" onclick="voltarObras()">← Voltar para obras</span>
+        <div class="toolbar">
+          <h2 id="obra-detail-nome"></h2>
+          <div style="display:flex;gap:8px">
+            <button class="btn-sm" onclick="editObraAtual()">Editar</button>
+            <button class="btn-sm btn-danger" onclick="deleteObraAtual()">✕ Excluir</button>
+          </div>
+        </div>
+        <div id="obra-detail-info" class="lead-card" style="margin-bottom:6px"></div>
+
+        <div class="section-title">⚠️ Registrar ocorrência / patologia</div>
+        <div class="lead-card" style="display:block">
+          <div class="frow"><label>Tipo</label>
+            <select id="oc-tipo">
+              <option value="patologia">Patologia</option>
+              <option value="acidente">Acidente/Incidente</option>
+              <option value="atraso">Atraso</option>
+              <option value="material">Problema de material</option>
+              <option value="outro">Outro</option>
+            </select>
+          </div>
+          <div class="frow"><label>Etapa relacionada</label>
+            <select id="oc-etapa">
+              <option value="">—</option>
+              <option value="fundacao">Fundação</option>
+              <option value="alvenaria">Alvenaria</option>
+              <option value="laje">Laje</option>
+              <option value="cobertura">Cobertura</option>
+              <option value="acabamento">Acabamento</option>
+              <option value="entrega">Entrega</option>
+            </select>
+          </div>
+          <div class="frow"><label>Descrição *</label><textarea id="oc-descricao" placeholder="O que aconteceu?"></textarea></div>
+          <div class="frow"><label>Causa</label><textarea id="oc-causa" placeholder="Por que aconteceu?"></textarea></div>
+          <div class="frow"><label>Ação corretiva / preventiva</label><textarea id="oc-acao" placeholder="O que fazer para resolver e evitar recorrência?"></textarea></div>
+          <div class="frow"><label>Gravidade</label>
+            <select id="oc-gravidade">
+              <option value="baixa">Baixa</option>
+              <option value="media" selected>Média</option>
+              <option value="alta">Alta</option>
+            </select>
+          </div>
+          <div class="frow"><label>Responsável</label><input type="text" id="oc-responsavel" placeholder="Nome"></div>
+          <div class="frow"><label>Foto</label>
+            <label class="file-input-label" id="oc-foto-label">📷 Selecionar foto</label>
+            <input type="file" id="oc-foto" accept="image/*" style="display:none" onchange="previewFoto(this,'oc-foto-preview')">
+            <img id="oc-foto-preview" class="preview-thumb hidden">
+          </div>
+          <button class="btn-green" onclick="registrarOcorrencia()">Registrar ocorrência</button>
+        </div>
+
+        <div class="section-title">📋 Checklist pré-laje (pontaletes/escoramento)</div>
+        <div id="checklist-prelaje" class="lead-card" style="display:block"></div>
+
+        <div class="section-title">📷 Diário de obra</div>
+        <div class="lead-card" style="display:block">
+          <div class="frow"><label>Anotação</label><textarea id="diario-texto" placeholder="O que foi feito hoje?"></textarea></div>
+          <div class="frow"><label>Foto</label>
+            <label class="file-input-label" id="diario-foto-label">📷 Selecionar foto</label>
+            <input type="file" id="diario-foto" accept="image/*" style="display:none" onchange="previewFoto(this,'diario-foto-preview')">
+            <img id="diario-foto-preview" class="preview-thumb hidden">
+          </div>
+          <button class="btn-green" onclick="registrarDiario()">Adicionar ao diário</button>
+        </div>
+        <div id="diario-list"></div>
+
+        <div class="section-title">🚨 Ocorrências registradas</div>
+        <div id="ocorrencias-list"></div>
+      </div>
+    </div>
       <div class="toolbar"><h2>Histórico de atividades</h2></div>
       <div id="hist-list"></div>
     </div>
@@ -168,6 +279,39 @@ main{padding:20px;max-width:1200px;margin:0 auto}
   </div>
 </div>
 <div id="toast" class="toast"></div>
+<div id="modal-obra" class="modal-overlay hidden">
+  <div class="modal">
+    <h3 id="modal-obra-title">Nova obra</h3>
+    <input type="hidden" id="ob-id">
+    <div class="frow"><label>Nome *</label><input type="text" id="ob-nome" placeholder="Ex: Jardim São José - Casa 04"></div>
+    <div class="frow"><label>Endereço</label><input type="text" id="ob-endereco" placeholder="Endereço da obra"></div>
+    <div class="frow"><label>Etapa atual</label>
+      <select id="ob-etapa">
+        <option value="fundacao">Fundação</option>
+        <option value="alvenaria">Alvenaria</option>
+        <option value="laje">Laje</option>
+        <option value="cobertura">Cobertura</option>
+        <option value="acabamento">Acabamento</option>
+        <option value="entrega">Entrega</option>
+      </select>
+    </div>
+    <div class="frow"><label>Status</label>
+      <select id="ob-status">
+        <option value="em_andamento">Em andamento</option>
+        <option value="pausada">Pausada</option>
+        <option value="concluida">Concluída</option>
+      </select>
+    </div>
+    <div class="frow"><label>Data de início</label><input type="date" id="ob-inicio"></div>
+    <div class="frow"><label>Previsão de término</label><input type="date" id="ob-fim"></div>
+    <div class="frow"><label>Responsável</label><input type="text" id="ob-responsavel" placeholder="Encarregado / mestre de obra"></div>
+    <div class="frow"><label>Observações</label><textarea id="ob-obs"></textarea></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeObraModal()">Cancelar</button>
+      <button class="btn-green" onclick="saveObra()">Salvar</button>
+    </div>
+  </div>
+</div>
 <script>
 let token=localStorage.getItem("crm_token")||"";
 let nomeUsuario=localStorage.getItem("crm_nome")||"";
@@ -288,13 +432,14 @@ async function renderHistorico(){
 }
 
 function showTab(tab,btn){
-  ["leads","funil","imoveis","historico"].forEach(t=>document.getElementById("tab-"+t).classList.add("hidden"));
+  ["leads","funil","imoveis","obras","historico"].forEach(t=>document.getElementById("tab-"+t).classList.add("hidden"));
   document.querySelectorAll(".nav-tab").forEach(b=>b.classList.remove("active"));
   document.getElementById("tab-"+tab).classList.remove("hidden");
   btn.classList.add("active");
   if(tab==="funil")renderKanban();
   if(tab==="imoveis")renderImoveis();
   if(tab==="historico")renderHistorico();
+  if(tab==="obras"){voltarObras();loadObras();}
 }
 
 function openModal(l=null){
@@ -331,6 +476,236 @@ async function deleteLead(id){
   if(!confirm("Remover este lead?"))return;
   await fetch("/api/leads/"+id,{method:"DELETE",headers:h()});
   loadLeads();toast("Lead removido");
+}
+
+// ============ OBRAS ============
+const ETAPA_OBRA_LABEL={fundacao:"Fundação",alvenaria:"Alvenaria",laje:"Laje",cobertura:"Cobertura",acabamento:"Acabamento",entrega:"Entrega"};
+const STATUS_OBRA_LABEL={em_andamento:"Em andamento",pausada:"Pausada",concluida:"Concluída"};
+const GRAV_LABEL={baixa:"Baixa",media:"Média",alta:"Alta"};
+let obras=[];
+let obraAtualId=null;
+
+async function loadObras(){
+  const r=await fetch("/api/obras",{headers:h()});
+  obras=await r.json();
+  renderObrasList();
+}
+
+function renderObrasList(){
+  const el=document.getElementById("obras-list");
+  if(!obras.length){el.innerHTML='<div class="empty">Nenhuma obra cadastrada ainda.</div>';return;}
+  el.innerHTML=obras.map(o=>`<div class="obra-card" onclick="abrirObra(${o.id})">
+    <div class="obra-card-top">
+      <div>
+        <div class="obra-card-name">${o.nome}</div>
+        <div class="obra-card-sub">${o.endereco||"Sem endereço"} · Responsável: ${o.responsavel||"—"}</div>
+      </div>
+      <div style="display:flex;gap:6px">
+        <span class="badge badge-etapa">${ETAPA_OBRA_LABEL[o.etapa]||o.etapa}</span>
+        <span class="badge badge-status-${o.status}">${STATUS_OBRA_LABEL[o.status]||o.status}</span>
+      </div>
+    </div>
+  </div>`).join("");
+}
+
+function openObraModal(o=null){
+  document.getElementById("modal-obra-title").textContent=o?"Editar obra":"Nova obra";
+  document.getElementById("ob-id").value=o?o.id:"";
+  document.getElementById("ob-nome").value=o?o.nome:"";
+  document.getElementById("ob-endereco").value=o?o.endereco||"":"";
+  document.getElementById("ob-etapa").value=o?o.etapa:"fundacao";
+  document.getElementById("ob-status").value=o?o.status:"em_andamento";
+  document.getElementById("ob-inicio").value=o&&o.data_inicio?o.data_inicio.substring(0,10):"";
+  document.getElementById("ob-fim").value=o&&o.previsao_fim?o.previsao_fim.substring(0,10):"";
+  document.getElementById("ob-responsavel").value=o?o.responsavel||"":"";
+  document.getElementById("ob-obs").value=o?o.observacoes||"":"";
+  document.getElementById("modal-obra").classList.remove("hidden");
+}
+function closeObraModal(){document.getElementById("modal-obra").classList.add("hidden");}
+
+async function saveObra(){
+  const id=document.getElementById("ob-id").value;
+  const body={
+    nome:document.getElementById("ob-nome").value.trim(),
+    endereco:document.getElementById("ob-endereco").value.trim(),
+    etapa:document.getElementById("ob-etapa").value,
+    status:document.getElementById("ob-status").value,
+    data_inicio:document.getElementById("ob-inicio").value||null,
+    previsao_fim:document.getElementById("ob-fim").value||null,
+    responsavel:document.getElementById("ob-responsavel").value.trim(),
+    observacoes:document.getElementById("ob-obs").value.trim()
+  };
+  if(!body.nome){alert("Preencha o nome da obra");return;}
+  const url=id?"/api/obras/"+id:"/api/obras";
+  const method=id?"PUT":"POST";
+  await fetch(url,{method,headers:h(),body:JSON.stringify(body)});
+  closeObraModal();
+  toast(id?"✅ Obra atualizada!":"✅ Obra cadastrada!");
+  await loadObras();
+  if(id&&obraAtualId==id)abrirObra(id);
+}
+
+function editObraAtual(){
+  const o=obras.find(x=>x.id===obraAtualId);
+  if(o)openObraModal(o);
+}
+
+async function deleteObraAtual(){
+  if(!confirm("Excluir esta obra e todo o histórico (diário, ocorrências, checklists)?"))return;
+  await fetch("/api/obras/"+obraAtualId,{method:"DELETE",headers:h()});
+  toast("Obra removida");
+  voltarObras();
+  loadObras();
+}
+
+function voltarObras(){
+  document.getElementById("obras-list-view").classList.remove("hidden");
+  document.getElementById("obra-detail-view").classList.add("hidden");
+  obraAtualId=null;
+}
+
+async function abrirObra(id){
+  obraAtualId=id;
+  document.getElementById("obras-list-view").classList.add("hidden");
+  document.getElementById("obra-detail-view").classList.remove("hidden");
+  await refreshObraDetail();
+}
+
+async function refreshObraDetail(){
+  const r=await fetch("/api/obras/"+obraAtualId,{headers:h()});
+  const o=await r.json();
+  document.getElementById("obra-detail-nome").textContent=o.nome;
+  document.getElementById("obra-detail-info").innerHTML=`
+    <div class="lead-info">
+      <div class="lead-sub">${o.endereco||"Sem endereço"}</div>
+      <div class="lead-sub">Início: ${o.data_inicio?new Date(o.data_inicio).toLocaleDateString("pt-BR"):"—"} · Previsão: ${o.previsao_fim?new Date(o.previsao_fim).toLocaleDateString("pt-BR"):"—"}</div>
+      <div class="lead-sub">Responsável: ${o.responsavel||"—"}</div>
+      ${o.observacoes?`<div class="lead-sub">${o.observacoes}</div>`:""}
+    </div>
+    <span class="badge badge-etapa">${ETAPA_OBRA_LABEL[o.etapa]||o.etapa}</span>
+    <span class="badge badge-status-${o.status}">${STATUS_OBRA_LABEL[o.status]||o.status}</span>
+  `;
+  renderDiarioList(o.diario);
+  renderOcorrenciasList(o.ocorrencias);
+  loadChecklist("pre_laje");
+}
+
+// ---- upload de foto (base64) ----
+function previewFoto(input,previewId){
+  const file=input.files[0];
+  const preview=document.getElementById(previewId);
+  if(!file){preview.classList.add("hidden");return;}
+  const reader=new FileReader();
+  reader.onload=e=>{preview.src=e.target.result;preview.classList.remove("hidden");};
+  reader.readAsDataURL(file);
+}
+function getFotoBase64(inputId){
+  return new Promise(resolve=>{
+    const input=document.getElementById(inputId);
+    const file=input.files[0];
+    if(!file){resolve(null);return;}
+    const reader=new FileReader();
+    reader.onload=e=>resolve(e.target.result);
+    reader.readAsDataURL(file);
+  });
+}
+
+// ---- Diário ----
+function renderDiarioList(diario){
+  const el=document.getElementById("diario-list");
+  if(!diario||!diario.length){el.innerHTML='<div class="empty">Nenhum registro no diário ainda.</div>';return;}
+  el.innerHTML=diario.map(d=>`<div class="diario-item">
+    <div>${d.texto||"<span style='color:#aaa'>(sem anotação)</span>"}</div>
+    ${d.foto_url?`<img class="item-foto" src="${d.foto_url}">`:""}
+    <div class="item-time">${new Date(d.criado_em).toLocaleString("pt-BR")}</div>
+  </div>`).join("");
+}
+
+async function registrarDiario(){
+  const texto=document.getElementById("diario-texto").value.trim();
+  const foto_url=await getFotoBase64("diario-foto");
+  if(!texto&&!foto_url){alert("Adicione uma anotação ou foto");return;}
+  await fetch("/api/obras/"+obraAtualId+"/diario",{method:"POST",headers:h(),body:JSON.stringify({texto,foto_url})});
+  document.getElementById("diario-texto").value="";
+  document.getElementById("diario-foto").value="";
+  document.getElementById("diario-foto-preview").classList.add("hidden");
+  toast("✅ Diário atualizado!");
+  refreshObraDetail();
+}
+
+// ---- Ocorrências ----
+function renderOcorrenciasList(lista){
+  const el=document.getElementById("ocorrencias-list");
+  if(!lista||!lista.length){el.innerHTML='<div class="empty">Nenhuma ocorrência registrada.</div>';return;}
+  el.innerHTML=lista.map(o=>`<div class="ocorrencia-item grav-${o.gravidade}">
+    <div class="obra-card-top">
+      <div style="font-weight:600;font-size:13px">${o.descricao}</div>
+      <span class="badge badge-grav-${o.gravidade}">${GRAV_LABEL[o.gravidade]||o.gravidade}</span>
+    </div>
+    <div class="tag-row">
+      <span class="tag">${o.tipo}</span>
+      ${o.etapa?`<span class="tag">${ETAPA_OBRA_LABEL[o.etapa]||o.etapa}</span>`:""}
+      ${o.responsavel?`<span class="tag">👤 ${o.responsavel}</span>`:""}
+      <span class="tag">${o.status==='aberta'?'🔴 Aberta':'✅ Resolvida'}</span>
+    </div>
+    ${o.causa?`<div class="item-meta"><b>Causa:</b> ${o.causa}</div>`:""}
+    ${o.acao_corretiva?`<div class="item-meta"><b>Ação:</b> ${o.acao_corretiva}</div>`:""}
+    ${o.foto_url?`<img class="item-foto" src="${o.foto_url}">`:""}
+    <div class="item-time">${new Date(o.criado_em).toLocaleString("pt-BR")}</div>
+    ${o.status==='aberta'?`<button class="btn-sm" style="margin-top:8px" onclick="resolverOcorrencia(${o.id})">Marcar como resolvida</button>`:""}
+  </div>`).join("");
+}
+
+async function resolverOcorrencia(id){
+  const o=(await (await fetch("/api/obras/"+obraAtualId,{headers:h()})).json()).ocorrencias.find(x=>x.id===id);
+  if(!o)return;
+  o.status="resolvida";
+  await fetch("/api/obras/ocorrencias/"+id,{method:"PUT",headers:h(),body:JSON.stringify(o)});
+  toast("✅ Ocorrência resolvida");
+  refreshObraDetail();
+}
+
+async function registrarOcorrencia(){
+  const descricao=document.getElementById("oc-descricao").value.trim();
+  if(!descricao){alert("Descreva a ocorrência");return;}
+  const foto_url=await getFotoBase64("oc-foto");
+  const body={
+    tipo:document.getElementById("oc-tipo").value,
+    etapa:document.getElementById("oc-etapa").value||null,
+    descricao,
+    causa:document.getElementById("oc-causa").value.trim(),
+    acao_corretiva:document.getElementById("oc-acao").value.trim(),
+    gravidade:document.getElementById("oc-gravidade").value,
+    responsavel:document.getElementById("oc-responsavel").value.trim(),
+    foto_url
+  };
+  await fetch("/api/obras/"+obraAtualId+"/ocorrencias",{method:"POST",headers:h(),body:JSON.stringify(body)});
+  ["oc-descricao","oc-causa","oc-acao","oc-responsavel"].forEach(id=>document.getElementById(id).value="");
+  document.getElementById("oc-foto").value="";
+  document.getElementById("oc-foto-preview").classList.add("hidden");
+  toast("✅ Ocorrência registrada!");
+  refreshObraDetail();
+}
+
+// ---- Checklist ----
+async function loadChecklist(etapa){
+  const r=await fetch("/api/obras/"+obraAtualId+"/checklist/"+etapa,{headers:h()});
+  const itens=await r.json();
+  const el=document.getElementById("checklist-prelaje");
+  if(!itens.length){el.innerHTML='<div class="empty">Nenhum item de checklist cadastrado.</div>';return;}
+  el.innerHTML=itens.map(item=>`<div class="checklist-item ${item.execucao&&item.execucao.ok?'checklist-done':''}">
+    <input type="checkbox" ${item.execucao&&item.execucao.ok?'checked':''} onchange="toggleChecklistItem(${item.id},this.checked)">
+    <div style="flex:1">
+      <div class="checklist-desc">${item.descricao}</div>
+      ${item.execucao&&item.execucao.executado_em?`<div class="item-meta">✓ ${new Date(item.execucao.executado_em).toLocaleString("pt-BR")}${item.execucao.executado_por?' · '+item.execucao.executado_por:''}</div>`:""}
+    </div>
+  </div>`).join("");
+}
+
+async function toggleChecklistItem(itemId,ok){
+  await fetch("/api/obras/"+obraAtualId+"/checklist/"+itemId,{method:"POST",headers:h(),body:JSON.stringify({ok,executado_por:nomeUsuario})});
+  toast(ok?"✅ Item concluído":"Item desmarcado");
+  loadChecklist("pre_laje");
 }
 </script>
 </body>

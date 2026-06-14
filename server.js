@@ -102,11 +102,22 @@ async function initDB() {
       "Teste de carga visual: pisar/saltar sobre a forma antes de concretar",
       "Foto do escoramento completo ANTES da concretagem (anexar ao diário)",
       "Verificar nível e prumo das formas",
+      "Verificar prumo e alinhamento (não torto) de todas as vigas e pontaletes de escoramento",
       "Responsável técnico assina o checklist liberando a concretagem",
     ];
     for (let i = 0; i < itensPreLaje.length; i++) {
       await pool.query("INSERT INTO obra_checklist_itens (etapa, descricao, ordem) VALUES ($1,$2,$3)",
         ["pre_laje", itensPreLaje[i], i + 1]);
+    }
+  } else {
+    // Item adicional incluído após ocorrência de viga de escoramento fora de alinhamento (13/06/2026)
+    const novoItem = "Verificar prumo e alinhamento (não torto) de todas as vigas e pontaletes de escoramento";
+    const jaExiste = await pool.query(
+      "SELECT id FROM obra_checklist_itens WHERE etapa='pre_laje' AND descricao=$1", [novoItem]);
+    if (jaExiste.rows.length === 0) {
+      await pool.query(
+        "INSERT INTO obra_checklist_itens (etapa, descricao, ordem) VALUES ($1,$2,$3)",
+        ["pre_laje", novoItem, 7]);
     }
   }
   console.log("Banco iniciado! Deploy: 2026-06-13");

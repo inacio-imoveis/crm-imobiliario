@@ -379,7 +379,6 @@ function renderLeads(){
       ${l.fone?`<button class="btn-sm btn-wa" onclick="abrirWA('${l.fone}')" title="WhatsApp">WA</button>`:""}
       <button class="btn-sm" onclick="editLead(${l.id})">Editar</button>
       <button class="btn-sm" onclick="avancar(${l.id})">→</button>
-      <button class="btn-sm btn-danger" onclick="deleteLead(${l.id})">✕</button>
     </div></div>`).join("");
 }
 
@@ -471,12 +470,6 @@ async function avancar(id){
   const l=leads.find(x=>x.id===id);if(!l)return;
   const idx=ETAPAS.indexOf(l.etapa);
   if(idx<ETAPAS.length-1){l.etapa=ETAPAS[idx+1];await fetch("/api/leads/"+id,{method:"PUT",headers:h(),body:JSON.stringify(l)});loadLeads();toast("→ "+ELABEL[l.etapa]);}
-}
-
-async function deleteLead(id){
-  if(!confirm("Remover este lead?"))return;
-  await fetch("/api/leads/"+id,{method:"DELETE",headers:h()});
-  loadLeads();toast("Lead removido");
 }
 
 // ============ OBRAS ============

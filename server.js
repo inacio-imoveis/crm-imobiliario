@@ -252,8 +252,7 @@ app.put("/api/leads/:id", auth, async (req, res) => {
 });
 
 app.delete("/api/leads/:id", auth, async (req, res) => {
-  await pool.query("DELETE FROM leads WHERE id=$1", [req.params.id]);
-  res.json({ ok: true });
+  res.status(403).json({ error: "Exclusão de leads desabilitada. Leads só podem ser movidos entre etapas." });
 });
 
 // ============ OBRAS ============

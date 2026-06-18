@@ -170,6 +170,30 @@ async function dispararEventoMeta(nome, fone) {
   }
 }
 
+// BOT ANA — disparo proativo ao receber lead
+// Chama o endpoint /simular/:phone do bot para enviar a primeira mensagem
+async function dispararBotAna(nome, fone, imovel) {
+  try {
+    const BOT_URL = process.env.BOT_ANA_URL || 'https://focused-comfort.up.railway.app';
+    const primeiroNome = nome.split(' ')[0];
+    const imovelTxt = imovel && imovel !== 'Não informado' ? imovel : null;
+    const texto = imovelTxt
+      ? `Olá, ${primeiroNome}! 😊 Vi que você se interessou pelo *${imovelTxt}*. Sou a Ana, assistente da Ricardo Inácio Imóveis. Posso te ajudar com mais informações e simular o financiamento pelo Minha Casa Minha Vida. Vamos conversar?`
+      : `Olá, ${primeiroNome}! 😊 Sou a Ana, assistente da Ricardo Inácio Imóveis. Vi que você entrou em contato pelo site. Posso te ajudar a encontrar o imóvel ideal pelo Minha Casa Minha Vida. O que você está buscando?`;
+    const foneNum = fone.replace(/\D/g, '');
+    const phone55 = foneNum.startsWith('55') ? foneNum : `55${foneNum}`;
+    const resp = await fetch(`${BOT_URL}/simular/${phone55}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ texto_customizado: texto, nome_cliente: primeiroNome })
+    });
+    const data = await resp.json();
+    console.log('Bot Ana disparado:', phone55, '->', JSON.stringify(data));
+  } catch (e) {
+    console.error('Erro ao disparar Bot Ana:', e.message);
+  }
+}
+
 app.post("/api/leads/publico", async (req, res) => {
   try {
     const { nome, fone, imovel, renda, observacoes } = req.body;
@@ -191,6 +215,7 @@ app.post("/api/leads/publico", async (req, res) => {
     );
     console.log(`Novo lead pelo site: ${nome} - ${fone}`);
     dispararEventoMeta(nome, fone);
+    dispararBotAna(nome, fone, imovel).catch(e => console.error('Bot Ana:', e.message));
     res.json({ ok: true, id: r.rows[0].id });
   } catch (err) {
     console.error("Erro ao salvar lead público:", err);

@@ -215,7 +215,9 @@ app.post("/api/leads/publico", async (req, res) => {
     );
     console.log(`Novo lead pelo site: ${nome} - ${fone}`);
     dispararEventoMeta(nome, fone);
-    dispararBotAna(nome, fone, imovel).catch(e => console.error('Bot Ana:', e.message));
+    // Não disparar o bot se o lead já veio do WhatsApp (evita loop)
+    const veioDoBotAna = (obs || "").includes("WhatsApp Bot Ana");
+    if (!veioDoBotAna) dispararBotAna(nome, fone, imovel).catch(e => console.error('Bot Ana:', e.message));
     res.json({ ok: true, id: r.rows[0].id });
   } catch (err) {
     console.error("Erro ao salvar lead público:", err);

@@ -92,6 +92,14 @@ async function initDB() {
       ["Ricardo Inácio", "ricardo@inacio.com", senha]);
   }
 
+  // Garante a existência da usuária Alessandra sem afetar usuários já cadastrados
+  const existeAlessandra = await pool.query("SELECT id FROM usuarios WHERE email=$1", ["alessandra@inacio.com"]);
+  if (existeAlessandra.rows.length === 0) {
+    const senhaAlessandra = await bcrypt.hash("alessandra2026", 10);
+    await pool.query("INSERT INTO usuarios (nome, email, senha) VALUES ($1,$2,$3)",
+      ["Alessandra", "alessandra@inacio.com", senhaAlessandra]);
+  }
+
   // Seed do checklist padrão de pré-concretagem de laje
   const existeChecklist = await pool.query("SELECT id FROM obra_checklist_itens WHERE etapa='pre_laje' LIMIT 1");
   if (existeChecklist.rows.length === 0) {
@@ -420,4 +428,5 @@ initDB().then(() => {
   app.listen(process.env.PORT || 3000, () =>
     console.log("CRM rodando na porta", process.env.PORT || 3000));
 });
+
 

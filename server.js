@@ -18,7 +18,8 @@ async function initDB() {
       id SERIAL PRIMARY KEY,
       nome TEXT NOT NULL,
       email TEXT UNIQUE NOT NULL,
-      senha TEXT NOT NULL
+      senha TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'usuario'
     );
     CREATE TABLE IF NOT EXISTS leads (
       id SERIAL PRIMARY KEY,
@@ -88,8 +89,8 @@ async function initDB() {
   const existe = await pool.query("SELECT id FROM usuarios LIMIT 1");
   if (existe.rows.length === 0) {
     const senha = await bcrypt.hash("ricardo2026", 10);
-    await pool.query("INSERT INTO usuarios (nome, email, senha) VALUES ($1,$2,$3)",
-      ["Ricardo Inácio", "ricardoinnacio@gmail.com", senha]);
+    await pool.query("INSERT INTO usuarios (nome, email, senha, role) VALUES ($1,$2,$3,$4)",
+      ["Ricardo Inácio", "ricardoinnacio@gmail.com", senha, "admin"]);
   }
 
   // Garante a existência da usuária Alessandra sem afetar usuários já cadastrados
@@ -97,8 +98,8 @@ async function initDB() {
     "SELECT id FROM usuarios WHERE email=$1 OR nome=$2", ["ricardoinacioimoveis@gmail.com", "Alessandra"]);
   if (existeAlessandra.rows.length === 0) {
     const senhaAlessandra = await bcrypt.hash("alessandra2026", 10);
-    await pool.query("INSERT INTO usuarios (nome, email, senha) VALUES ($1,$2,$3)",
-      ["Alessandra", "ricardoinacioimoveis@gmail.com", senhaAlessandra]);
+    await pool.query("INSERT INTO usuarios (nome, email, senha, role) VALUES ($1,$2,$3,$4)",
+      ["Alessandra", "ricardoinacioimoveis@gmail.com", senhaAlessandra, "usuario"]);
   }
 
   // Atualiza emails para os endereços reais definidos pelo Ricardo (correção pontual — 19/06/2026)
@@ -106,6 +107,10 @@ async function initDB() {
     ["ricardoinnacio@gmail.com", "Ricardo Inácio", "ricardo@inacio.com"]);
   await pool.query("UPDATE usuarios SET email=$1 WHERE nome=$2 AND email=$3",
     ["ricardoinacioimoveis@gmail.com", "Alessandra", "alessandra@inacio.com"]);
+
+  // Garante papéis corretos: Ricardo é admin, Alessandra é usuário comum (sem permissão de excluir) — 19/06/2026
+  await pool.query("UPDATE usuarios SET role='admin' WHERE nome='Ricardo Inácio'");
+  await pool.query("UPDATE usuarios SET role='usuario' WHERE nome='Alessandra'");
 
   // Seed do checklist padrão de pré-concretagem de laje
   const existeChecklist = await pool.query("SELECT id FROM obra_checklist_itens WHERE etapa='pre_laje' LIMIT 1");
@@ -147,14 +152,20 @@ function auth(req, res, next) {
   } catch { res.status(401).json({ erro: "Token inválido" }); }
 }
 
+function somenteAdmin(req, res, next) {
+  if (req.usuario?.role !== "admin")
+    return res.status(403).json({ erro: "Apenas o administrador pode excluir registros" });
+  next();
+}
+
 // LOGIN
 app.post("/api/login", async (req, res) => {
   const { email, senha } = req.body;
   const r = await pool.query("SELECT * FROM usuarios WHERE email=$1", [email]);
   if (!r.rows[0] || !await bcrypt.compare(senha, r.rows[0].senha))
     return res.status(401).json({ erro: "Email ou senha incorretos" });
-  const token = jwt.sign({ id: r.rows[0].id, nome: r.rows[0].nome }, JWT_SECRET, { expiresIn: "7d" });
-  res.json({ token, nome: r.rows[0].nome });
+  const token = jwt.sign({ id: r.rows[0].id, nome: r.rows[0].nome, role: r.rows[0].role }, JWT_SECRET, { expiresIn: "7d" });
+  res.json({ token, nome: r.rows[0].nome, role: r.rows[0].role });
 });
 
 // ROTA PÚBLICA — recebe leads do site sem autenticação
@@ -306,7 +317,7 @@ app.put("/api/obras/:id", auth, async (req, res) => {
   res.json(r.rows[0]);
 });
 
-app.delete("/api/obras/:id", auth, async (req, res) => {
+app.delete("/api/obras/:id", auth, somenteAdmin, async (req, res) => {
   await pool.query("DELETE FROM obras WHERE id=$1", [req.params.id]);
   res.json({ ok: true });
 });
@@ -325,7 +336,7 @@ app.post("/api/obras/:id/diario", auth, async (req, res) => {
   res.json(r.rows[0]);
 });
 
-app.delete("/api/obras/diario/:id", auth, async (req, res) => {
+app.delete("/api/obras/diario/:id", auth, somenteAdmin, async (req, res) => {
   await pool.query("DELETE FROM obra_diario WHERE id=$1", [req.params.id]);
   res.json({ ok: true });
 });
@@ -363,7 +374,7 @@ app.put("/api/obras/ocorrencias/:id", auth, async (req, res) => {
   res.json(r.rows[0]);
 });
 
-app.delete("/api/obras/ocorrencias/:id", auth, async (req, res) => {
+app.delete("/api/obras/ocorrencias/:id", auth, somenteAdmin, async (req, res) => {
   await pool.query("DELETE FROM obra_ocorrencias WHERE id=$1", [req.params.id]);
   res.json({ ok: true });
 });
@@ -386,7 +397,7 @@ app.post("/api/checklist-itens", auth, async (req, res) => {
   res.json(r.rows[0]);
 });
 
-app.delete("/api/checklist-itens/:id", auth, async (req, res) => {
+app.delete("/api/checklist-itens/:id", auth, somenteAdmin, async (req, res) => {
   await pool.query("DELETE FROM obra_checklist_itens WHERE id=$1", [req.params.id]);
   res.json({ ok: true });
 });
@@ -435,5 +446,6 @@ initDB().then(() => {
   app.listen(process.env.PORT || 3000, () =>
     console.log("CRM rodando na porta", process.env.PORT || 3000));
 });
+
 
 

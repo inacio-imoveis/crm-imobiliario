@@ -86,6 +86,10 @@ async function initDB() {
       executado_por TEXT
     );
   `);
+
+  // Garante a coluna role em bancos já existentes (a tabela usuarios já existia antes desta coluna ser criada)
+  await pool.query("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'usuario'");
+
   const existe = await pool.query("SELECT id FROM usuarios LIMIT 1");
   if (existe.rows.length === 0) {
     const senha = await bcrypt.hash("ricardo2026", 10);
@@ -446,6 +450,7 @@ initDB().then(() => {
   app.listen(process.env.PORT || 3000, () =>
     console.log("CRM rodando na porta", process.env.PORT || 3000));
 });
+
 
 
 

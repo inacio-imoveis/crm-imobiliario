@@ -36,6 +36,16 @@ async function initDB() {
       texto TEXT NOT NULL,
       criado_em TIMESTAMP DEFAULT NOW()
     );
+    CREATE TABLE IF NOT EXISTS lead_lembrete_config (
+      etapa TEXT PRIMARY KEY,
+      dias INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS lead_lembrete_enviado (
+      id SERIAL PRIMARY KEY,
+      lead_id INTEGER REFERENCES leads(id) ON DELETE CASCADE,
+      etapa TEXT NOT NULL,
+      enviado_em TIMESTAMP DEFAULT NOW()
+    );
     CREATE TABLE IF NOT EXISTS obras (
       id SERIAL PRIMARY KEY,
       nome TEXT NOT NULL,
@@ -144,6 +154,21 @@ async function initDB() {
         ["pre_laje", novoItem, 7]);
     }
   }
+  // Seed dos prazos padrão de lembrete de lead parado (em dias), por etapa do funil.
+  // Etapas iniciais têm prazo curto (lead esfria rápido); etapas mais avançadas, prazo maior.
+  const prazosPadrao = {
+    novo: 1,
+    contato: 3,
+    visita: 5,
+    proposta: 7,
+  };
+  for (const [etapa, dias] of Object.entries(prazosPadrao)) {
+    await pool.query(
+      "INSERT INTO lead_lembrete_config (etapa, dias) VALUES ($1,$2) ON CONFLICT (etapa) DO NOTHING",
+      [etapa, dias]
+    );
+  }
+
   console.log("Banco iniciado! Deploy: 2026-06-13");
 }
 
@@ -224,7 +249,95 @@ async function dispararBotAna(nome, fone, imovel) {
   }
 }
 
-// Cria um lead no banco e dispara os efeitos colaterais padrão (histórico, Meta CAPI, bot Ana)
+// ALERTA INTERNO — avisa a equipe (não o lead) via WhatsApp quando um lead fica parado
+// Usa o mesmo bot Ana, mas como notificação direta para o número informado.
+async function dispararAlertaInterno(numeroDestino, texto) {
+  try {
+    const BOT_URL = process.env.BOT_ANA_URL || 'https://focused-comfort.up.railway.app';
+    const numNum = numeroDestino.replace(/\D/g, '');
+    const phone55 = numNum.startsWith('55') ? numNum : `55${numNum}`;
+    const resp = await fetch(`${BOT_URL}/simular/${phone55}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ texto_customizado: texto, nome_cliente: null })
+    });
+    const data = await resp.json();
+    console.log('Alerta interno disparado:', phone55, '->', JSON.stringify(data));
+  } catch (e) {
+    console.error('Erro ao disparar alerta interno:', e.message);
+  }
+}
+
+// Números da equipe que recebem alertas de lead parado.
+// Formato: lista separada por vírgula em ALERTA_LEAD_PARADO_NUMEROS, ex: "62992786934,62999998888"
+function numerosAlerta() {
+  const env = process.env.ALERTA_LEAD_PARADO_NUMEROS || "62992786934";
+  return env.split(",").map(n => n.trim()).filter(Boolean);
+}
+
+const ELABEL_ALERTA = {
+  novo: "Novo", contato: "Contato", visita: "Visita", proposta: "Proposta",
+  fechado: "Fechado", comprou: "Comprou", sem_entrada: "Sem entrada",
+  restricao: "Restrição", inativo: "Inativo", acompanhar: "Acompanhar",
+};
+
+// Verifica leads parados além do prazo configurado para sua etapa e dispara alerta (uma vez por etapa/lead)
+async function verificarLeadsParados() {
+  try {
+    const config = await pool.query("SELECT etapa, dias FROM lead_lembrete_config");
+    if (config.rows.length === 0) return;
+    const prazoPorEtapa = {};
+    config.rows.forEach(c => prazoPorEtapa[c.etapa] = c.dias);
+
+    const leads = await pool.query(
+      `SELECT id, nome, fone, imovel, etapa, observacoes, criado_em FROM leads WHERE etapa = ANY($1)`,
+      [Object.keys(prazoPorEtapa)]
+    );
+
+    for (const lead of leads.rows) {
+      const prazoDias = prazoPorEtapa[lead.etapa];
+      if (!prazoDias) continue;
+
+      // Data da última mudança de etapa: usa o histórico mais recente do lead, ou a criação se não houver
+      const ultimaMudanca = await pool.query(
+        `SELECT criado_em FROM historico WHERE lead_id=$1 ORDER BY criado_em DESC LIMIT 1`,
+        [lead.id]
+      );
+      const referencia = ultimaMudanca.rows[0]?.criado_em || lead.criado_em;
+      const diasParado = Math.floor((Date.now() - new Date(referencia).getTime()) / 86400000);
+      if (diasParado < prazoDias) continue;
+
+      // Evita reenviar o mesmo alerta repetidas vezes para a mesma etapa
+      const jaAvisado = await pool.query(
+        `SELECT id FROM lead_lembrete_enviado WHERE lead_id=$1 AND etapa=$2`,
+        [lead.id, lead.etapa]
+      );
+      if (jaAvisado.rows.length > 0) continue;
+
+      const texto =
+        `⚠️ Lead parado há ${diasParado} dia(s)\n\n` +
+        `Nome: ${lead.nome}\n` +
+        `Telefone: ${lead.fone || "não informado"}\n` +
+        `Imóvel: ${lead.imovel || "não informado"}\n` +
+        `Etapa: ${ELABEL_ALERTA[lead.etapa] || lead.etapa}\n` +
+        (lead.observacoes ? `Observações: ${lead.observacoes}\n` : "") +
+        `\nPrazo configurado para esta etapa: ${prazoDias} dia(s).`;
+
+      for (const numero of numerosAlerta()) {
+        await dispararAlertaInterno(numero, texto);
+      }
+
+      await pool.query(
+        `INSERT INTO lead_lembrete_enviado (lead_id, etapa) VALUES ($1,$2)`,
+        [lead.id, lead.etapa]
+      );
+    }
+  } catch (e) {
+    console.error("Erro ao verificar leads parados:", e.message);
+  }
+}
+
+
 async function criarLeadEDispararFluxo({ nome, fone, imovel, observacoes }) {
   const r = await pool.query(
     "INSERT INTO leads (nome,fone,imovel,etapa,observacoes) VALUES ($1,$2,$3,$4,$5) RETURNING *",
@@ -350,11 +463,19 @@ app.post("/api/leads", auth, async (req, res) => {
 
 app.put("/api/leads/:id", auth, async (req, res) => {
   const { nome, fone, imovel, etapa, observacoes } = req.body;
+  const anterior = await pool.query("SELECT etapa FROM leads WHERE id=$1", [req.params.id]);
+  const etapaMudou = anterior.rows[0] && anterior.rows[0].etapa !== etapa;
   const r = await pool.query(
     "UPDATE leads SET nome=$1,fone=$2,imovel=$3,etapa=$4,observacoes=$5 WHERE id=$6 RETURNING *",
     [nome, fone, imovel, etapa, observacoes, req.params.id]);
-  await pool.query("INSERT INTO historico (lead_id,texto) VALUES ($1,$2)",
-    [req.params.id, `Etapa atualizada para: ${etapa}`]);
+  if (etapaMudou) {
+    await pool.query("INSERT INTO historico (lead_id,texto) VALUES ($1,$2)",
+      [req.params.id, `Etapa atualizada para: ${etapa}`]);
+    // Lead mudou de etapa: limpa o controle de alerta para a etapa NOVA,
+    // assim o relógio de "dias parado" reinicia e o lembrete pode disparar de novo se ele travar aqui.
+    await pool.query("DELETE FROM lead_lembrete_enviado WHERE lead_id=$1 AND etapa=$2",
+      [req.params.id, etapa]);
+  }
   res.json(r.rows[0]);
 });
 
@@ -523,9 +644,30 @@ app.get("/api/historico", auth, async (req, res) => {
   res.json(r.rows);
 });
 
+// ---- Lembrete de lead parado: configuração de prazo por etapa ----
+app.get("/api/lembrete-config", auth, async (req, res) => {
+  const r = await pool.query("SELECT etapa, dias FROM lead_lembrete_config ORDER BY etapa");
+  res.json(r.rows);
+});
+
+app.put("/api/lembrete-config/:etapa", auth, async (req, res) => {
+  const { dias } = req.body;
+  const diasNum = parseInt(dias, 10);
+  if (!diasNum || diasNum < 1) return res.status(400).json({ erro: "Dias deve ser um número maior que zero" });
+  const r = await pool.query(
+    `INSERT INTO lead_lembrete_config (etapa, dias) VALUES ($1,$2)
+     ON CONFLICT (etapa) DO UPDATE SET dias=$2 RETURNING *`,
+    [req.params.etapa, diasNum]);
+  res.json(r.rows[0]);
+});
+
 initDB().then(() => {
   app.listen(process.env.PORT || 3000, () =>
     console.log("CRM rodando na porta", process.env.PORT || 3000));
+
+  // Verifica leads parados a cada 1 hora (roda também ~1min após subir, pra não esperar a primeira hora)
+  setTimeout(verificarLeadsParados, 60 * 1000);
+  setInterval(verificarLeadsParados, 60 * 60 * 1000);
 });
 
 

@@ -175,7 +175,7 @@ main{padding:20px;max-width:1200px;margin:0 auto}
           <h2 id="obra-detail-nome"></h2>
           <div style="display:flex;gap:8px">
             <button class="btn-sm" onclick="editObraAtual()">Editar</button>
-            <button class="btn-sm btn-danger" onclick="deleteObraAtual()">✕ Excluir</button>
+            <button class="btn-sm btn-danger somente-admin" onclick="deleteObraAtual()">✕ Excluir</button>
           </div>
         </div>
         <div id="obra-detail-info" class="lead-card" style="margin-bottom:6px"></div>
@@ -316,6 +316,7 @@ main{padding:20px;max-width:1200px;margin:0 auto}
 <script>
 let token=localStorage.getItem("crm_token")||"";
 let nomeUsuario=localStorage.getItem("crm_nome")||"";
+let roleUsuario=localStorage.getItem("crm_role")||"";
 const ETAPAS=["novo","contato","visita","proposta","fechado"];
 const ELABEL={novo:"Novo",contato:"Contato",visita:"Visita",proposta:"Proposta",fechado:"Fechado"};
 const EBADGE={novo:"badge-novo",contato:"badge-contato",visita:"badge-visita",proposta:"badge-proposta",fechado:"badge-fechado"};
@@ -330,7 +331,13 @@ const IMOVEIS=[
 let leads=[];
 let dragId=null;
 
-if(token){document.getElementById("login-page").classList.add("hidden");document.getElementById("app-page").classList.remove("hidden");document.getElementById("nav-nome").textContent=nomeUsuario+" — Sair";loadLeads();}
+if(token){document.getElementById("login-page").classList.add("hidden");document.getElementById("app-page").classList.remove("hidden");document.getElementById("nav-nome").textContent=nomeUsuario+" — Sair";aplicarPermissoes();loadLeads();}
+
+function aplicarPermissoes(){
+  document.querySelectorAll(".somente-admin").forEach(el=>{
+    el.style.display = (roleUsuario==="admin") ? "" : "none";
+  });
+}
 
 function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t.classList.add("show");setTimeout(()=>t.classList.remove("show"),2500);}
 
@@ -341,15 +348,16 @@ async function login(){
     const r=await fetch("/api/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email,senha})});
     const d=await r.json();
     if(!r.ok){document.getElementById("l-erro").textContent=d.erro;document.getElementById("l-erro").classList.remove("hidden");return;}
-    token=d.token;nomeUsuario=d.nome;
-    localStorage.setItem("crm_token",token);localStorage.setItem("crm_nome",nomeUsuario);
+    token=d.token;nomeUsuario=d.nome;roleUsuario=d.role||"usuario";
+    localStorage.setItem("crm_token",token);localStorage.setItem("crm_nome",nomeUsuario);localStorage.setItem("crm_role",roleUsuario);
     document.getElementById("login-page").classList.add("hidden");
     document.getElementById("app-page").classList.remove("hidden");
     document.getElementById("nav-nome").textContent=nomeUsuario+" — Sair";
+    aplicarPermissoes();
     loadLeads();
   }catch(e){document.getElementById("l-erro").textContent="Erro de conexão";document.getElementById("l-erro").classList.remove("hidden");}
 }
-function logout(){localStorage.removeItem("crm_token");localStorage.removeItem("crm_nome");location.reload();}
+function logout(){localStorage.removeItem("crm_token");localStorage.removeItem("crm_nome");localStorage.removeItem("crm_role");location.reload();}
 function h(){return{"Content-Type":"application/json","Authorization":"Bearer "+token};}
 function ini(n){return n.split(" ").slice(0,2).map(x=>x[0]).join("").toUpperCase();}
 
@@ -704,4 +712,5 @@ async function toggleChecklistItem(itemId,ok){
 </script>
 </body>
 </html>
+
 

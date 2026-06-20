@@ -89,16 +89,23 @@ async function initDB() {
   if (existe.rows.length === 0) {
     const senha = await bcrypt.hash("ricardo2026", 10);
     await pool.query("INSERT INTO usuarios (nome, email, senha) VALUES ($1,$2,$3)",
-      ["Ricardo Inácio", "ricardo@inacio.com", senha]);
+      ["Ricardo Inácio", "ricardoinnacio@gmail.com", senha]);
   }
 
   // Garante a existência da usuária Alessandra sem afetar usuários já cadastrados
-  const existeAlessandra = await pool.query("SELECT id FROM usuarios WHERE email=$1", ["alessandra@inacio.com"]);
+  const existeAlessandra = await pool.query(
+    "SELECT id FROM usuarios WHERE email=$1 OR nome=$2", ["ricardoinacioimoveis@gmail.com", "Alessandra"]);
   if (existeAlessandra.rows.length === 0) {
     const senhaAlessandra = await bcrypt.hash("alessandra2026", 10);
     await pool.query("INSERT INTO usuarios (nome, email, senha) VALUES ($1,$2,$3)",
-      ["Alessandra", "alessandra@inacio.com", senhaAlessandra]);
+      ["Alessandra", "ricardoinacioimoveis@gmail.com", senhaAlessandra]);
   }
+
+  // Atualiza emails para os endereços reais definidos pelo Ricardo (correção pontual — 19/06/2026)
+  await pool.query("UPDATE usuarios SET email=$1 WHERE nome=$2 AND email=$3",
+    ["ricardoinnacio@gmail.com", "Ricardo Inácio", "ricardo@inacio.com"]);
+  await pool.query("UPDATE usuarios SET email=$1 WHERE nome=$2 AND email=$3",
+    ["ricardoinacioimoveis@gmail.com", "Alessandra", "alessandra@inacio.com"]);
 
   // Seed do checklist padrão de pré-concretagem de laje
   const existeChecklist = await pool.query("SELECT id FROM obra_checklist_itens WHERE etapa='pre_laje' LIMIT 1");

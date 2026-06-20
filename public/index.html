@@ -42,6 +42,11 @@ main{padding:20px;max-width:1200px;margin:0 auto}
 .badge-visita{background:#fef3c7;color:#92400e}
 .badge-proposta{background:#fce7f3;color:#9d174d}
 .badge-fechado{background:#d1fae5;color:#065f46}
+.badge-comprou{background:#bbf7d0;color:#14532d}
+.badge-sem_entrada{background:#fee2e2;color:#991b1b}
+.badge-restricao{background:#fed7aa;color:#9a3412}
+.badge-inativo{background:#e5e7eb;color:#374151}
+.badge-acompanhar{background:#e0e7ff;color:#3730a3}
 .lead-btns{display:flex;gap:6px;margin-left:auto}
 .btn-sm{padding:5px 10px;font-size:12px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;color:#555}
 .btn-danger{border-color:#fca5a5;color:#dc2626}
@@ -270,6 +275,11 @@ main{padding:20px;max-width:1200px;margin:0 auto}
         <option value="visita">Visita agendada</option>
         <option value="proposta">Proposta enviada</option>
         <option value="fechado">Fechado</option>
+        <option value="comprou">Já comprou</option>
+        <option value="sem_entrada">Sem entrada</option>
+        <option value="restricao">Com restrição</option>
+        <option value="inativo">Inativo</option>
+        <option value="acompanhar">Acompanhar</option>
       </select>
     </div>
     <div class="frow"><label>Observações</label><textarea id="f-obs" placeholder="Anotações..."></textarea></div>
@@ -317,9 +327,10 @@ main{padding:20px;max-width:1200px;margin:0 auto}
 let token=localStorage.getItem("crm_token")||"";
 let nomeUsuario=localStorage.getItem("crm_nome")||"";
 let roleUsuario=localStorage.getItem("crm_role")||"";
-const ETAPAS=["novo","contato","visita","proposta","fechado"];
-const ELABEL={novo:"Novo",contato:"Contato",visita:"Visita",proposta:"Proposta",fechado:"Fechado"};
-const EBADGE={novo:"badge-novo",contato:"badge-contato",visita:"badge-visita",proposta:"badge-proposta",fechado:"badge-fechado"};
+const ETAPAS=["novo","contato","visita","proposta","fechado","comprou","sem_entrada","restricao","inativo","acompanhar"];
+const ETAPAS_FUNIL=["novo","contato","visita","proposta","fechado"];
+const ELABEL={novo:"Novo",contato:"Contato",visita:"Visita",proposta:"Proposta",fechado:"Fechado",comprou:"Já comprou",sem_entrada:"Sem entrada",restricao:"Com restrição",inativo:"Inativo",acompanhar:"Acompanhar"};
+const EBADGE={novo:"badge-novo",contato:"badge-contato",visita:"badge-visita",proposta:"badge-proposta",fechado:"badge-fechado",comprou:"badge-comprou",sem_entrada:"badge-sem_entrada",restricao:"badge-restricao",inativo:"badge-inativo",acompanhar:"badge-acompanhar"};
 const IMOVEIS=[
   {nome:"Monte Pascoal — Casa 01",quartos:2,area:46,valor:149000,entrada:7450},
   {nome:"Monte Pascoal — Casa 02",quartos:2,area:46,valor:149000,entrada:7450},
@@ -476,8 +487,9 @@ async function saveLead(){
 
 async function avancar(id){
   const l=leads.find(x=>x.id===id);if(!l)return;
-  const idx=ETAPAS.indexOf(l.etapa);
-  if(idx<ETAPAS.length-1){l.etapa=ETAPAS[idx+1];await fetch("/api/leads/"+id,{method:"PUT",headers:h(),body:JSON.stringify(l)});loadLeads();toast("→ "+ELABEL[l.etapa]);}
+  const idx=ETAPAS_FUNIL.indexOf(l.etapa);
+  if(idx===-1)return; // já está em uma etapa final (comprou, sem_entrada, restricao, inativo, acompanhar) — não avança mais por aqui
+  if(idx<ETAPAS_FUNIL.length-1){l.etapa=ETAPAS_FUNIL[idx+1];await fetch("/api/leads/"+id,{method:"PUT",headers:h(),body:JSON.stringify(l)});loadLeads();toast("→ "+ELABEL[l.etapa]);}
 }
 
 // ============ OBRAS ============
@@ -712,5 +724,6 @@ async function toggleChecklistItem(itemId,ok){
 </script>
 </body>
 </html>
+
 
 

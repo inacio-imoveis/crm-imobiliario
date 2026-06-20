@@ -165,7 +165,10 @@ main{padding:20px;max-width:1200px;margin:0 auto}
       <div id="leads-list"></div>
     </div>
     <div id="tab-funil" class="hidden">
-      <div class="toolbar"><h2>Funil de vendas <span style="font-size:12px;color:#888;font-weight:400">— arraste os cards para mover</span></h2></div>
+      <div class="toolbar">
+        <h2>Funil de vendas <span style="font-size:12px;color:#888;font-weight:400">— arraste os cards para mover</span></h2>
+        <button class="btn-sm" onclick="openLembreteModal()">⏰ Lembretes de lead parado</button>
+      </div>
       <div class="kanban" id="kanban"></div>
     </div>
     <div id="tab-imoveis" class="hidden">
@@ -326,6 +329,19 @@ main{padding:20px;max-width:1200px;margin:0 auto}
     <div class="modal-btns">
       <button class="btn-cancel" onclick="closeObraModal()">Cancelar</button>
       <button class="btn-green" onclick="saveObra()">Salvar</button>
+    </div>
+  </div>
+</div>
+<div id="modal-lembrete" class="modal-overlay hidden">
+  <div class="modal">
+    <h3>⏰ Lembretes de lead parado</h3>
+    <p style="font-size:12px;color:#666;margin-bottom:16px">
+      Se um lead ficar nessa etapa por mais dias que o número configurado, você e a equipe recebem um aviso por WhatsApp.
+    </p>
+    <div id="lembrete-campos"></div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeLembreteModal()">Cancelar</button>
+      <button class="btn-green" onclick="saveLembreteConfig()">Salvar</button>
     </div>
   </div>
 </div>
@@ -586,6 +602,31 @@ function openObraModal(o=null){
   document.getElementById("modal-obra").classList.remove("hidden");
 }
 function closeObraModal(){document.getElementById("modal-obra").classList.add("hidden");}
+
+async function openLembreteModal(){
+  const r=await fetch("/api/lembrete-config",{headers:h()});
+  const config=await r.json();
+  const dias={};
+  config.forEach(c=>dias[c.etapa]=c.dias);
+  document.getElementById("lembrete-campos").innerHTML=ETAPAS_FUNIL.slice(0,4).map(et=>`
+    <div class="frow">
+      <label>${ELABEL[et]} — avisar após quantos dias parado?</label>
+      <input type="number" min="1" id="lemb-${et}" value="${dias[et]||""}" placeholder="Ex: 3">
+    </div>
+  `).join("");
+  document.getElementById("modal-lembrete").classList.remove("hidden");
+}
+function closeLembreteModal(){document.getElementById("modal-lembrete").classList.add("hidden");}
+
+async function saveLembreteConfig(){
+  for(const et of ETAPAS_FUNIL.slice(0,4)){
+    const valor=document.getElementById("lemb-"+et).value;
+    if(!valor)continue;
+    await fetch("/api/lembrete-config/"+et,{method:"PUT",headers:h(),body:JSON.stringify({dias:valor})});
+  }
+  toast("✅ Prazos de lembrete atualizados");
+  closeLembreteModal();
+}
 
 async function saveObra(){
   const id=document.getElementById("ob-id").value;

@@ -339,6 +339,28 @@ async function verificarLeadsParados() {
 
 
 async function criarLeadEDispararFluxo({ nome, fone, imovel, observacoes }) {
+  // Evita duplicata: se já existe um lead com este telefone ainda na etapa "novo"
+  // (ou seja, ainda não avançou no funil), atualiza esse registro em vez de criar outro.
+  // Se o lead já avançou (visita, proposta etc.), trata como interesse novo de verdade
+  // e cria um registro separado.
+  const existente = await pool.query(
+    "SELECT * FROM leads WHERE fone = $1 AND etapa = 'novo' ORDER BY criado_em DESC LIMIT 1",
+    [fone]
+  );
+
+  if (existente.rows.length > 0) {
+    const leadAtual = existente.rows[0];
+    const r = await pool.query(
+      "UPDATE leads SET nome = $1, imovel = $2, observacoes = $3 WHERE id = $4 RETURNING *",
+      [nome, imovel || leadAtual.imovel || "Não informado", observacoes || leadAtual.observacoes, leadAtual.id]
+    );
+    await pool.query(
+      "INSERT INTO historico (lead_id,texto) VALUES ($1,$2)",
+      [leadAtual.id, `Lead atualizado: ${nome} (${fone})`]
+    );
+    return r.rows[0];
+  }
+
   const r = await pool.query(
     "INSERT INTO leads (nome,fone,imovel,etapa,observacoes) VALUES ($1,$2,$3,$4,$5) RETURNING *",
     [nome, fone, imovel || "Não informado", "novo", observacoes || null]

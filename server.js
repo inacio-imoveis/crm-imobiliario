@@ -224,6 +224,22 @@ async function dispararBotAna(nome, fone, imovel) {
   }
 }
 
+// Cria um lead no banco e dispara os efeitos colaterais padrão (histórico, Meta CAPI, bot Ana)
+async function criarLeadEDispararFluxo({ nome, fone, imovel, observacoes }) {
+  const r = await pool.query(
+    "INSERT INTO leads (nome,fone,imovel,etapa,observacoes) VALUES ($1,$2,$3,$4,$5) RETURNING *",
+    [nome, fone, imovel || "Não informado", "novo", observacoes || null]
+  );
+  await pool.query(
+    "INSERT INTO historico (lead_id,texto) VALUES ($1,$2)",
+    [r.rows[0].id, `Lead recebido: ${nome} (${fone})`]
+  );
+  dispararEventoMeta(nome, fone);
+  const veioDoBotAna = (observacoes || "").includes("WhatsApp Bot Ana");
+  if (!veioDoBotAna) dispararBotAna(nome, fone, imovel).catch(e => console.error('Bot Ana:', e.message));
+  return r.rows[0];
+}
+
 app.post("/api/leads/publico", async (req, res) => {
   try {
     const { nome, fone, imovel, renda, observacoes } = req.body;
@@ -235,25 +251,86 @@ app.post("/api/leads/publico", async (req, res) => {
       observacoes || null
     ].filter(Boolean).join(" | ");
 
-    const r = await pool.query(
-      "INSERT INTO leads (nome,fone,imovel,etapa,observacoes) VALUES ($1,$2,$3,$4,$5) RETURNING *",
-      [nome, fone, imovel || "Não informado", "novo", obs || null]
-    );
-    await pool.query(
-      "INSERT INTO historico (lead_id,texto) VALUES ($1,$2)",
-      [r.rows[0].id, `Lead recebido pelo site: ${nome} (${fone})`]
-    );
+    const lead = await criarLeadEDispararFluxo({ nome, fone, imovel, observacoes: obs });
     console.log(`Novo lead pelo site: ${nome} - ${fone}`);
-    dispararEventoMeta(nome, fone);
-    // Não disparar o bot se o lead já veio do WhatsApp (evita loop)
-    const veioDoBotAna = (obs || "").includes("WhatsApp Bot Ana");
-    if (!veioDoBotAna) dispararBotAna(nome, fone, imovel).catch(e => console.error('Bot Ana:', e.message));
-    res.json({ ok: true, id: r.rows[0].id });
+    res.json({ ok: true, id: lead.id });
   } catch (err) {
     console.error("Erro ao salvar lead público:", err);
     res.status(500).json({ erro: "Erro interno" });
   }
 });
+
+// ============ FACEBOOK / INSTAGRAM LEAD ADS ============
+// Documentação: https://developers.facebook.com/docs/marketing-api/guides/lead-ads/
+const FB_VERIFY_TOKEN = process.env.FB_VERIFY_TOKEN || "ricardo-inacio-imoveis-webhook-2026";
+const FB_PAGE_ACCESS_TOKEN = process.env.FB_PAGE_ACCESS_TOKEN;
+
+// 1) Verificação do webhook — o Facebook chama esse GET uma vez, ao salvar a configuração no painel
+app.get("/api/webhook/facebook-leads", (req, res) => {
+  const mode = req.query["hub.mode"];
+  const token = req.query["hub.verify_token"];
+  const challenge = req.query["hub.challenge"];
+  if (mode === "subscribe" && token === FB_VERIFY_TOKEN) {
+    console.log("Webhook Facebook verificado com sucesso");
+    return res.status(200).send(challenge);
+  }
+  res.sendStatus(403);
+});
+
+// 2) Recebimento de leads — o Facebook chama esse POST toda vez que alguém preenche um Lead Ad
+app.post("/api/webhook/facebook-leads", async (req, res) => {
+  // Responde 200 imediatamente: o Facebook reenvia o evento se não receber confirmação rápida
+  res.sendStatus(200);
+  try {
+    const entries = req.body.entry || [];
+    for (const entry of entries) {
+      const changes = entry.changes || [];
+      for (const change of changes) {
+        if (change.field !== "leadgen") continue;
+        const leadgenId = change.value?.leadgen_id;
+        if (!leadgenId) continue;
+        await processarLeadFacebook(leadgenId);
+      }
+    }
+  } catch (err) {
+    console.error("Erro ao processar webhook do Facebook:", err.message);
+  }
+});
+
+// Busca os dados completos do lead na Graph API a partir do leadgen_id recebido no webhook
+async function processarLeadFacebook(leadgenId) {
+  if (!FB_PAGE_ACCESS_TOKEN) {
+    console.error("FB_PAGE_ACCESS_TOKEN não configurado — não foi possível buscar o lead", leadgenId);
+    return;
+  }
+  try {
+    const resp = await fetch(
+      `https://graph.facebook.com/v19.0/${leadgenId}?access_token=${FB_PAGE_ACCESS_TOKEN}`
+    );
+    const data = await resp.json();
+    if (data.error) {
+      console.error("Erro Graph API ao buscar lead:", JSON.stringify(data.error));
+      return;
+    }
+    // field_data vem como [{name: "full_name", values: ["..."]}, {name: "phone_number", values: ["..."]}, ...]
+    const campos = {};
+    (data.field_data || []).forEach(f => {
+      campos[f.name] = (f.values || [])[0] || "";
+    });
+    const nome = campos.full_name || campos.nome || campos.name || "Lead Facebook (sem nome)";
+    const fone = campos.phone_number || campos.telefone || campos.whatsapp || "";
+    if (!fone) {
+      console.error("Lead do Facebook sem telefone, ignorado:", leadgenId, JSON.stringify(campos));
+      return;
+    }
+    const formNome = data.form_name || data.ad_name || "Anúncio Facebook/Instagram";
+    const observacoes = `Origem: Facebook/Instagram Lead Ads (${formNome})`;
+    const lead = await criarLeadEDispararFluxo({ nome, fone, imovel: "Não informado", observacoes });
+    console.log(`Novo lead do Facebook Ads: ${nome} - ${fone} (leadgen_id ${leadgenId})`);
+  } catch (e) {
+    console.error("Erro ao processar lead do Facebook:", e.message);
+  }
+}
 
 // LEADS autenticados
 app.get("/api/leads", auth, async (req, res) => {
@@ -450,6 +527,7 @@ initDB().then(() => {
   app.listen(process.env.PORT || 3000, () =>
     console.log("CRM rodando na porta", process.env.PORT || 3000));
 });
+
 
 
 
